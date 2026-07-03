@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对跖点漫游局 · 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', sans-serif;
+            background: #0d1a30;
+            color: #f5f0e8;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #e8923a; margin-bottom: 20px; font-size: 24px; display: flex; align-items: center; gap: 12px; }
+        h1 small { font-size: 14px; color: rgba(245,240,232,0.3); font-weight: 300; }
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: rgba(255,255,255,0.04);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .tabs button {
+            padding: 8px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: rgba(245,240,232,0.5);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .tabs button:hover { color: #f5f0e8; background: rgba(255,255,255,0.05); }
+        .tabs button.active { background: #e8923a; color: #f5f0e8; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .toolbar input, .toolbar select {
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #f5f0e8;
+            font-size: 14px;
+            outline: none;
+            font-family: inherit;
+            min-width: 150px;
+        }
+        .toolbar input:focus, .toolbar select:focus { border-color: #2898e8; }
+        .toolbar button {
+            padding: 8px 20px;
+            background: #2898e8;
+            border: none;
+            border-radius: 8px;
+            color: #f5f0e8;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .toolbar button:hover { opacity: 0.8; }
+        .toolbar .btn-danger { background: #e74c3c; }
+        .toolbar .btn-success { background: #27ae60; }
+        .toolbar .btn-warning { background: #e8923a; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        th {
+            color: rgba(245,240,232,0.4);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td { color: rgba(245,240,232,0.8); }
+        .actions { display: flex; gap: 6px; }
+        .actions button {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+        }
+        .actions .edit { background: #2898e8; color: #fff; }
+        .actions .delete { background: #e74c3c; color: #fff; }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a2a4a;
+            border-radius: 16px;
+            padding: 24px 28px;
+            max-width: 700px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .modal-content h2 { color: #e8923a; margin-bottom: 16px; font-size: 20px; }
+        .modal-content .form-group {
+            margin-bottom: 12px;
+        }
+        .modal-content .form-group label {
+            display: block;
+            font-size: 13px;
+            color: rgba(245,240,232,0.5);
+            margin-bottom: 4px;
+        }
+        .modal-content .form-group input,
+        .modal-content .form-group textarea,
+        .modal-content .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #f5f0e8;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+        }
+        .modal-content .form-group textarea { min-height: 60px; resize: vertical; }
+        .modal-content .form-group input:focus,
+        .modal-content .form-group textarea:focus {
+            border-color: #2898e8;
+        }
+        .modal-content .form-row {
+            display: flex;
+            gap: 12px;
+        }
+        .modal-content .form-row .form-group { flex: 1; }
+        .modal-content .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .modal-content .modal-actions button {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .modal-content .modal-actions .save { background: #27ae60; color: #fff; }
+        .modal-content .modal-actions .cancel { background: rgba(255,255,255,0.08); color: rgba(245,240,232,0.5); }
+        
+        .empty { text-align: center; color: rgba(245,240,232,0.2); padding: 40px; }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            background: rgba(255,255,255,0.06);
+        }
+        .badge.land { background: rgba(39,174,96,0.2); color: #27ae60; }
+        .badge.sea { background: rgba(40,152,232,0.2); color: #2898e8; }
+        
+        .image-upload-preview {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .image-upload-preview .preview-item {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: rgba(245,240,232,0.3);
+            position: relative;
+        }
+        .image-upload-preview .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-upload-preview .preview-item .remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #e74c3c;
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stats-grid .stat-card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .stats-grid .stat-card .num {
+            font-size: 28px;
+            font-weight: 700;
+            color: #e8923a;
+        }
+        .stats-grid .stat-card .label {
+            font-size: 12px;
+            color: rgba(245,240,232,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .modal-content { padding: 16px; }
+            .form-row { flex-direction: column; }
+            table { font-size: 11px; }
+            th, td { padding: 6px 8px; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar input { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>✦ 对跖点漫游局 · 管理后台 <small>v2.0</small></h1>
+    
+    <div class="tabs">
+        <button class="active" data-tab="cities">🏙️ 城市管理</button>
+        <button data-tab="gifts">🎁 物产管理</button>
+        <button data-tab="images">🖼️ 配图管理</button>
+        <button data-tab="stats">📊 数据统计</button>
+    </div>
+    
+    <!-- 城市管理 -->
+    <div class="tab-content active" id="tab-cities">
+        <div class="toolbar">
+            <button class="btn-success" onclick="openCityModal()">+ 新增城市</button>
+            <input type="text" id="citySearch" placeholder="搜索城市..." oninput="filterCities()">
+            <button onclick="refreshCities()">🔄 刷新</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table>
+            <thead>
+    <tr>
+        <th>ID</th>
+        <th>城市名</th>
+        <th>对跖点</th>
+        <th>图片</th>
+        <th>类别</th>
+        <th>精度</th>
+        <th>操作</th>
+    </tr>
+</thead>
+                <tbody id="cityTableBody">
+                    <tr><td colspan="7" class="empty">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 物产管理 -->
+    <div class="tab-content" id="tab-gifts">
+        <div class="toolbar">
+            <button class="btn-success" onclick="openGiftModal()">+ 新增物产</button>
+            <button onclick="refreshGifts()">🔄 刷新</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>物产名</th>
+                        <th>国家</th>
+                        <th>描述</th>
+                        <th>图片</th>
+                        <th>双状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="giftTableBody">
+                    <tr><td colspan="7" class="empty">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 配图管理 -->
+    <div class="tab-content" id="tab-images">
+        <div style="padding:20px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px dashed rgba(255,255,255,0.1);">
+            <p style="color:rgba(245,240,232,0.4);font-size:14px;margin-bottom:12px;">
+                📤 在城市或物产编辑界面，可直接上传配图。<br>
+                城市配图：每个城市可上传 2 张（地标图 + 对跖点图）<br>
+                物产配图：每个物产可上传 1-2 张（成熟版 + 青涩版）
+            </p>
+            <button onclick="document.querySelector('[data-tab=\'cities\']').click()" class="btn-warning" style="padding:8px 20px;background:#e8923a;border:none;border-radius:8px;color:#fff;cursor:pointer;margin-right:10px;">
+                去城市管理中上传配图
+            </button>
+            <button onclick="document.querySelector('[data-tab=\'gifts\']').click()" class="btn-warning" style="padding:8px 20px;background:#e8923a;border:none;border-radius:8px;color:#fff;cursor:pointer;">
+                去物产管理中上传配图
+            </button>
+        </div>
+        <div style="margin-top:16px;">
+            <h3 style="color:rgba(245,240,232,0.5);font-size:14px;margin-bottom:10px;">📷 已上传的图片</h3>
+            <div id="imageGallery" style="display:flex;flex-wrap:wrap;gap:10px;">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 数据统计 -->
+    <div class="tab-content" id="tab-stats">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="num" id="statCities">0</div>
+                <div class="label">城市</div>
+            </div>
+            <div class="stat-card">
+                <div class="num" id="statGifts">0</div>
+                <div class="label">物产</div>
+            </div>
+            <div class="stat-card">
+                <div class="num" id="statImages">0</div>
+                <div class="label">图片</div>
+            </div>
+            <div class="stat-card">
+                <div class="num" id="statSearches">0</div>
+                <div class="label">总搜索次数</div>
+            </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.06);">
+            <h3 style="color:rgba(245,240,232,0.3);font-size:13px;margin-bottom:12px;">📥 数据操作</h3>
+            <button onclick="exportData()" class="btn-warning" style="padding:8px 20px;background:#e8923a;border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;">⬇️ 导出全部数据 (JSON)</button>
+            <span style="color:rgba(245,240,232,0.2);font-size:12px;margin-left:12px;">备份你的所有数据</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 城市编辑模态框 ===== -->
+<div class="modal" id="cityModal">
+    <div class="modal-content">
+        <h2 id="cityModalTitle">新增城市</h2>
+        <form id="cityForm" onsubmit="saveCity(event)">
+            <input type="hidden" id="editCityId">
+            <div class="form-group">
+                <label>城市名 (中文) *</label>
+                <input type="text" id="cityNameCn" required>
+            </div>
+            <div class="form-group">
+                <label>城市名 (英文)</label>
+                <input type="text" id="cityNameEn">
+            </div>
+            <div class="form-row">
+    <div class="form-group">
+        <label>纬度</label>
+        <input type="number" step="any" id="cityLat">   <!-- required 已删除 -->
+    </div>
+    <div class="form-group">
+        <label>经度</label>
+        <input type="number" step="any" id="cityLng">   <!-- required 已删除 -->
+    </div>
+</div>
+
+<div class="form-group">
+    <label>对跖点名称</label>
+    <input type="text" id="antipodeName">
+</div>
+            <div class="form-group">
+                <label>对跖点英文</label>
+                <input type="text" id="antipodeNameEn">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>对跖点纬度</label>
+                    <input type="number" step="any" id="antipodeLat">
+                </div>
+                <div class="form-group">
+                    <label>对跖点经度</label>
+                    <input type="number" step="any" id="antipodeLng">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>类别</label>
+                    <select id="category">
+                        <option value="陆-陆">陆-陆</option>
+                        <option value="陆-海">陆-海</option>
+                    </select>
+                </div>
+               <div class="form-group">
+    <label>对跖精度</label>
+    <select id="precisionLevel" onchange="updateDeviation(this.value)">
+        <option value="精确级">精确级 (偏差约1%，≤126km)</option>
+        <option value="区域级">区域级 (偏差约2.5%，≤315km)</option>
+        <option value="方向级">方向级 (其他)</option>
+    </select>
+</div>
+<div class="form-group">
+    <label>偏差 (度)</label>
+    <input type="number" step="any" id="deviationKm" placeholder="自动根据精度填充">
+</div>
+            </div>
+            <div class="form-group">
+                <label>人文短句</label>
+                <textarea id="cityPoem" rows="2" placeholder="「此刻，你脚下的土地，正与地球另一端悄然相连」"></textarea>
+            </div>
+<div class="form-group">
+    <label>人文短句（英文）</label>
+    <textarea id="cityPoemEn" rows="2" placeholder="如: Cross the core, meet your far side."></textarea>
+</div>
+            <div class="form-group">
+                <label>配图上传</label>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div>
+                        <div style="font-size:12px;color:rgba(245,240,232,0.3);margin-bottom:4px;">地标图</div>
+                        <input type="file" id="originImageUpload" accept="image/*" onchange="uploadImage(this, 'origin')">
+                        <div class="image-upload-preview" id="originImagePreview"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;color:rgba(245,240,232,0.3);margin-bottom:4px;">对跖点图</div>
+                        <input type="file" id="antipodeImageUpload" accept="image/*" onchange="uploadImage(this, 'antipode')">
+                        <div class="image-upload-preview" id="antipodeImagePreview"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="cancel" onclick="closeCityModal()">取消</button>
+                <button type="submit" class="save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== 物产编辑模态框 ===== -->
+<div class="modal" id="giftModal">
+    <div class="modal-content">
+        <h2 id="giftModalTitle">新增物产</h2>
+        <form id="giftForm" onsubmit="saveGift(event)">
+            <input type="hidden" id="editGiftId">
+            <div class="form-group">
+                <label>物产名 (中文) *</label>
+                <input type="text" id="giftNameCn" required>
+            </div>
+            <div class="form-group">
+                <label>物产名 (英文)</label>
+                <input type="text" id="giftNameEn">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <input type="text" id="giftDescription" placeholder="简短描述，如：阿根廷的国民饮品">
+            </div>
+<div class="form-group">
+    <label>描述（英文）</label>
+    <input type="text" id="giftDescriptionEn" placeholder="如: Argentina's national drink">
+</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>国家</label>
+                    <select id="giftCountry">
+                        <option value="阿根廷">阿根廷</option>
+    <option value="智利">智利</option>
+    <option value="玻利维亚">玻利维亚</option>
+    <option value="乌拉圭">乌拉圭</option>
+    <option value="巴拉圭">巴拉圭</option>
+    <option value="秘鲁">秘鲁</option>
+    <option value="巴西">巴西</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <select id="giftCategory">
+                        <option value="饮品">饮品</option>
+                        <option value="酒类">酒类</option>
+                        <option value="生鲜">生鲜</option>
+                        <option value="水果">水果</option>
+                        <option value="食品">食品</option>
+                        <option value="调味品">调味品</option>
+                        <option value="手工艺">手工艺</option>
+                        <option value="矿物/饰品">矿物/饰品</option>
+                        <option value="谷物">谷物</option>
+                    </select>
+                </div>
+            </div>
+<div class="form-group">
+    <label>触发类型</label>
+    <select id="giftTriggerType">
+        <option value="land">陆地（南美物产）</option>
+        <option value="ocean">海洋（海产物产）</option>
+    </select>
+</div>
+<div class="form-group" id="oceanRegionGroup" style="display:none;">
+    <label>海洋区域</label>
+    <select id="giftOceanRegion">
+        <option value="both">通用（太平洋+大西洋）</option>
+        <option value="pacific">太平洋</option>
+        <option value="atlantic">大西洋</option>
+    </select>
+</div>
+            <div class="form-group">
+                <label>双状态 (成熟/青涩)</label>
+                <select id="giftHasGreen">
+                    <option value="0">否</option>
+                    <option value="1">是</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>成熟版文案</label>
+                <input type="text" id="giftPoemRipe" placeholder="成熟版礼物文案">
+            </div>
+<div class="form-group">
+    <label>成熟版文案（英文）</label>
+    <input type="text" id="giftPoemRipeEn" placeholder="如: The warmth from the other side...">
+</div>
+            <div class="form-group" id="greenPoemGroup" style="display:none;">
+                <label>青涩版文案</label>
+                <input type="text" id="giftPoemGreen" placeholder="青涩版礼物文案（未成熟时显示）">
+            </div>
+<div class="form-group" id="greenPoemEnGroup" style="display:none;">
+    <label>青涩版文案（英文）</label>
+    <input type="text" id="giftPoemGreenEn" placeholder="如: Still sleeping in the oak barrels...">
+</div>
+            <div class="form-group">
+                <label>图片上传</label>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div>
+                        <div style="font-size:12px;color:rgba(245,240,232,0.3);margin-bottom:4px;">成熟版</div>
+                        <input type="file" id="giftImageRipeUpload" accept="image/*" onchange="uploadGiftImage(this, 'ripe')">
+                        <div class="image-upload-preview" id="giftImageRipePreview"></div>
+                    </div>
+                    <div id="greenImageGroup" style="display:none;">
+                        <div style="font-size:12px;color:rgba(245,240,232,0.3);margin-bottom:4px;">青涩版</div>
+                        <input type="file" id="giftImageGreenUpload" accept="image/*" onchange="uploadGiftImage(this, 'green')">
+                        <div class="image-upload-preview" id="giftImageGreenPreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="cancel" onclick="closeGiftModal()">取消</button>
+                <button type="submit" class="save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 管理后台 - 主程序 (修复图片预览共享问题)
+// ============================================================
+const API_BASE = '';
+
+// ===== 【新增】格式化经纬度为带方向的字符串 =====
+function formatCoord(lat, lng) {
+    if (lat === undefined || lng === undefined || lat === null || lng === null) return '—';
+    if (isNaN(lat) || isNaN(lng)) return '—';
+    const latDir = lat >= 0 ? '°N' : '°S';
+    const lngDir = lng >= 0 ? '°E' : '°W';
+    return `${Math.abs(parseFloat(lat)).toFixed(4)}${latDir}, ${Math.abs(parseFloat(lng)).toFixed(4)}${lngDir}`;
+}
+
+// ===== 全局变量：当前编辑对象 =====
+let currentCity = null;   // 当前编辑的城市对象
+let currentGift = null;   // 当前编辑的物产对象
+
+// ===== Tab切换 =====
+document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+        if (this.dataset.tab === 'stats') loadStats();
+        if (this.dataset.tab === 'images') loadImages();
+    });
+});
+
+// ============================================================
+// 城市管理
+// ============================================================
+async function refreshCities() {
+    const tbody = document.getElementById('cityTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">加载中...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE}/api/cities`);
+        const data = await res.json();
+               if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无城市数据</td></tr>';
+            return;
+        }
+
+        // ===== 新增：按拼音/英文首字母排序 =====
+        data.sort((a, b) => {
+            const aKey = (a.name_en && a.name_en.trim()) ? a.name_en : a.name_cn;
+            const bKey = (b.name_en && b.name_en.trim()) ? b.name_en : b.name_cn;
+            return aKey.localeCompare(bKey, 'zh-Hans-CN', { sensitivity: 'base' });
+        });
+
+        tbody.innerHTML = data.map(c => `
+    <tr>
+        <td>${c.id}</td>
+        <td><strong>${c.name_cn}</strong> ${c.name_en ? '('+c.name_en+')' : ''}</td>
+        <td>${c.antipode_name ? c.antipode_name + (c.antipode_name_en ? ' (' + c.antipode_name_en + ')' : '') : '—'}</td>
+        <td>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${c.origin_image ? `<img src="${API_BASE}${c.origin_image}" width="50" height="50" style="object-fit:cover;border-radius:4px;" />` : '—'}
+                ${c.antipode_image ? `<img src="${API_BASE}${c.antipode_image}" width="50" height="50" style="object-fit:cover;border-radius:4px;" />` : ''}
+            </div>
+        </td>
+        <td><span class="badge ${c.category === '陆-陆' ? 'land' : 'sea'}">${c.category}</span></td>
+        <td>${formatPrecisionDisplay(c.precision_level, c.deviation_km)}</td>
+        <td>
+            <div class="actions">
+                <button class="edit" onclick="editCity(${c.id})">✏️</button>
+                <button class="delete" onclick="deleteCity(${c.id})">🗑️</button>
+            </div>
+        </td>
+    </tr>
+`).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">加载失败</td></tr>';
+    }
+}
+
+function filterCities() {
+    const q = document.getElementById('citySearch').value.toLowerCase();
+    document.querySelectorAll('#cityTableBody tr').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+    });
+}
+
+function openCityModal(data) {
+    document.getElementById('cityModal').classList.add('active');
+    document.getElementById('cityModalTitle').textContent = data ? '编辑城市' : '新增城市';
+    // 保存当前城市对象
+    currentCity = data ? { ...data } : { id: null, name_cn: '', name_en: '', lat: '', lng: '', antipode_name: '', antipode_name_en: '', antipode_lat: '', antipode_lng: '', category: '陆-陆', precision_level: '区域级', deviation_km: '', poem: '', origin_image: '', antipode_image: '' };
+    document.getElementById('editCityId').value = data?.id || '';
+    document.getElementById('cityNameCn').value = currentCity.name_cn;
+    document.getElementById('cityNameEn').value = currentCity.name_en;
+    document.getElementById('cityLat').value = currentCity.lat;
+    document.getElementById('cityLng').value = currentCity.lng;
+    document.getElementById('antipodeName').value = currentCity.antipode_name;
+    document.getElementById('antipodeNameEn').value = currentCity.antipode_name_en;
+    document.getElementById('antipodeLat').value = currentCity.antipode_lat;
+    document.getElementById('antipodeLng').value = currentCity.antipode_lng;
+    document.getElementById('category').value = currentCity.category;
+    const precisionSelect = document.getElementById('precisionLevel');
+precisionSelect.value = currentCity.precision_level || '区域级';
+const devInput = document.getElementById('deviationKm');
+if (currentCity.deviation_km && currentCity.deviation_km !== 0) {
+    devInput.value = currentCity.deviation_km;
+} else {
+    // 根据精度自动填充
+    updateDeviation(precisionSelect.value);
+}
+    document.getElementById('cityPoem').value = currentCity.poem;
+document.getElementById('cityPoemEn').value = currentCity.poem_en || '';
+
+
+// 重置预览和文件选择器
+document.getElementById('originImagePreview').innerHTML = '';
+// ...
+    document.getElementById('antipodeImagePreview').innerHTML = '';
+    document.getElementById('originImageUpload').value = '';
+    document.getElementById('antipodeImageUpload').value = '';
+
+    // 加载已有图片到预览
+    if (currentCity.origin_image) {
+        document.getElementById('originImagePreview').innerHTML = `
+            <div class="preview-item">
+                <img src="${API_BASE}${currentCity.origin_image}" alt="地标图">
+                <button class="remove" onclick="this.parentElement.remove(); currentCity.origin_image = '';">✕</button>
+            </div>
+        `;
+    }
+    if (currentCity.antipode_image) {
+        document.getElementById('antipodeImagePreview').innerHTML = `
+            <div class="preview-item">
+                <img src="${API_BASE}${currentCity.antipode_image}" alt="对跖点图">
+                <button class="remove" onclick="this.parentElement.remove(); currentCity.antipode_image = '';">✕</button>
+            </div>
+        `;
+    }
+}
+
+function closeCityModal() {
+    document.getElementById('cityModal').classList.remove('active');
+    currentCity = null;
+}
+
+async function editCity(id) {
+    try {
+        const res = await fetch(`${API_BASE}/api/cities/${id}`);
+        const data = await res.json();
+        openCityModal(data);
+    } catch(e) { alert('加载失败'); }
+}
+async function saveCity(e) {
+    e.preventDefault();
+    if (!currentCity) return;
+
+    const nameCn = document.getElementById('cityNameCn').value.trim();
+    if (!nameCn) {
+        alert('城市名不能为空');
+        return;
+    }
+
+    // 基础字段
+    currentCity.name_cn = nameCn;
+    currentCity.name_en = document.getElementById('cityNameEn').value.trim() || nameCn;
+
+    // 经纬度：空则0
+    const latVal = parseFloat(document.getElementById('cityLat').value);
+    const lngVal = parseFloat(document.getElementById('cityLng').value);
+    currentCity.lat = isNaN(latVal) ? 0 : latVal;
+    currentCity.lng = isNaN(lngVal) ? 0 : lngVal;
+
+    // 对跖点名称：空则用默认英文（避免特殊字符触发校验）
+    currentCity.antipode_name = document.getElementById('antipodeName').value.trim() || 'The Other Side';
+    currentCity.antipode_name_en = document.getElementById('antipodeNameEn').value.trim() || 'OtherSide';
+
+    const antiLatVal = parseFloat(document.getElementById('antipodeLat').value);
+    const antiLngVal = parseFloat(document.getElementById('antipodeLng').value);
+    currentCity.antipode_lat = isNaN(antiLatVal) ? 0 : antiLatVal;
+    currentCity.antipode_lng = isNaN(antiLngVal) ? 0 : antiLngVal;
+
+    currentCity.category = document.getElementById('category').value;
+    currentCity.precision_level = document.getElementById('precisionLevel').value;
+    const devVal = parseFloat(document.getElementById('deviationKm').value);
+    currentCity.deviation_km = isNaN(devVal) ? 0 : devVal;
+
+    // 人文短句：空则用英文默认
+    currentCity.poem = document.getElementById('cityPoem').value.trim() || 'A moment connecting you to the far side.';
+    currentCity.poem_en = document.getElementById('cityPoemEn').value.trim() || 'Cross the core, meet your far side.';
+
+    // ！！！关键：如果图片字段未定义，设为空字符串（避免 undefined）
+    currentCity.origin_image = currentCity.origin_image || '';
+    currentCity.antipode_image = currentCity.antipode_image || '';
+
+    const payload = { ...currentCity };
+    delete payload.id;
+
+    try {
+        const url = currentCity.id ? `${API_BASE}/api/admin/cities/${currentCity.id}` : `${API_BASE}/api/admin/cities`;
+        const method = currentCity.id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (res.ok) {
+            closeCityModal();
+            refreshCities();
+            loadStats();
+        } else {
+            alert('保存失败: ' + (result.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('保存失败: ' + e.message);
+    }
+}
+// ===== 根据对跖精度自动填充偏差值 =====
+function updateDeviation(level) {
+    const devInput = document.getElementById('deviationKm');
+    if (level === '精确级') {
+        devInput.value = 1;
+    } else if (level === '区域级') {
+        devInput.value = 2.5;
+    } else if (level === '方向级') {
+        devInput.value = 0;
+    }
+}
+
+// ===== 格式化精度显示（根据精度级别和偏差值展示友好文本） =====
+function formatPrecisionDisplay(level, deviation) {
+    if (!level) return '—';
+    let display = level;
+    if (level === '精确级') {
+        display += ' (≤126km)';
+    } else if (level === '区域级') {
+        display += ' (≤315km)';
+    } else if (level === '方向级') {
+        display += ' (其他)';
+    }
+    return display;
+}
+// ===== 城市图片上传 =====
+async function uploadImage(input, type) {
+    if (!input.files || !input.files[0]) return;
+    if (!currentCity) { alert('请先打开一个城市编辑框'); return; }
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            // 更新当前城市对象的图片字段
+            const field = type === 'origin' ? 'origin_image' : 'antipode_image';
+            currentCity[field] = data.imagePath;
+            // 更新预览
+            const previewId = type === 'origin' ? 'originImagePreview' : 'antipodeImagePreview';
+            document.getElementById(previewId).innerHTML = `
+                <div class="preview-item">
+                    <img src="${API_BASE}${data.imagePath}" alt="预览">
+                    <button class="remove" onclick="this.parentElement.remove(); currentCity.${field} = '';">✕</button>
+                </div>
+            `;
+        }
+    } catch(e) { alert('上传失败'); }
+}
+
+// ============================================================
+// 物产管理
+// ============================================================
+async function refreshGifts() {
+    const tbody = document.getElementById('giftTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">加载中...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE}/api/gifts`);
+        const data = await res.json();
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无物产数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(g => `
+            <tr>
+                <td>${g.id}</td>
+                <td><strong>${g.name_cn}</strong> ${g.name_en ? '('+g.name_en+')' : ''}</td>
+                <td>${g.country || '—'}</td>
+                <td>${g.description || '—'}</td>
+                <td>
+                    ${g.image_ripe ? `<img src="${API_BASE}${g.image_ripe}" width="50" height="50" style="object-fit:cover;border-radius:4px;" />` : '—'}
+                </td>
+                <td>${g.has_green ? '🌱 是' : '—'}</td>
+                <td>
+                    <div class="actions">
+                        <button class="edit" onclick="editGift(${g.id})">✏️</button>
+                        <button class="delete" onclick="deleteGift(${g.id})">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">加载失败</td></tr>';
+    }
+}
+
+function openGiftModal(data) {
+    document.getElementById('giftModal').classList.add('active');
+    document.getElementById('giftModalTitle').textContent = data ? '编辑物产' : '新增物产';
+    currentGift = data ? { ...data } : { id: null, name_cn: '', name_en: '', description: '', country: '阿根廷', category: '饮品', has_green: 0, poem_ripe: '', poem_green: '', image_ripe: '', image_green: '' };
+    document.getElementById('editGiftId').value = data?.id || '';
+    document.getElementById('giftNameCn').value = currentGift.name_cn;
+    document.getElementById('giftNameEn').value = currentGift.name_en;
+    document.getElementById('giftDescription').value = currentGift.description;
+    document.getElementById('giftCountry').value = currentGift.country;
+    document.getElementById('giftCategory').value = currentGift.category;
+    document.getElementById('giftHasGreen').value = currentGift.has_green;
+    document.getElementById('giftPoemRipe').value = currentGift.poem_ripe;
+    document.getElementById('giftPoemGreen').value = currentGift.poem_green;
+document.getElementById('giftDescriptionEn').value = currentGift.description_en || '';
+document.getElementById('giftPoemRipeEn').value = currentGift.poem_ripe_en || '';
+document.getElementById('giftPoemGreenEn').value = currentGift.poem_green_en || '';
+document.getElementById('giftTriggerType').value = currentGift.trigger_type || 'land';
+document.getElementById('giftOceanRegion').value = currentGift.ocean_region || 'both';
+    // 重置预览和文件选择器
+    document.getElementById('giftImageRipePreview').innerHTML = '';
+    document.getElementById('giftImageGreenPreview').innerHTML = '';
+    document.getElementById('giftImageRipeUpload').value = '';
+    document.getElementById('giftImageGreenUpload').value = '';
+
+    // 加载已有图片
+    if (currentGift.image_ripe) {
+        document.getElementById('giftImageRipePreview').innerHTML = `
+            <div class="preview-item">
+                <img src="${API_BASE}${currentGift.image_ripe}" alt="成熟版">
+                <button class="remove" onclick="this.parentElement.remove(); currentGift.image_ripe = '';">✕</button>
+            </div>
+        `;
+    }
+    if (currentGift.image_green && currentGift.has_green) {
+        document.getElementById('giftImageGreenPreview').innerHTML = `
+            <div class="preview-item">
+                <img src="${API_BASE}${currentGift.image_green}" alt="青涩版">
+                <button class="remove" onclick="this.parentElement.remove(); currentGift.image_green = '';">✕</button>
+            </div>
+        `;
+    }
+
+    toggleGreenFields();
+}
+
+function closeGiftModal() {
+    document.getElementById('giftModal').classList.remove('active');
+    currentGift = null;
+}
+
+document.getElementById('giftHasGreen').addEventListener('change', toggleGreenFields);
+document.getElementById('giftTriggerType').addEventListener('change', toggleGreenFields);
+function toggleGreenFields() {
+    const val = parseInt(document.getElementById('giftHasGreen').value);
+    document.getElementById('greenPoemGroup').style.display = val ? 'block' : 'none';
+    document.getElementById('greenImageGroup').style.display = val ? 'block' : 'none';
+    document.getElementById('greenPoemEnGroup').style.display = val ? 'block' : 'none';
+const triggerType = document.getElementById('giftTriggerType').value;
+    document.getElementById('oceanRegionGroup').style.display = triggerType === 'ocean' ? 'block' : 'none';
+}
+async function editGift(id) {
+    try {
+        const res = await fetch(`${API_BASE}/api/gifts`);
+        const data = await res.json();
+        const gift = data.find(g => g.id === id);
+        if (gift) openGiftModal(gift);
+    } catch(e) { alert('加载失败'); }
+}
+
+async function saveGift(e) {
+    e.preventDefault();
+    if (!currentGift) return;
+    // 从表单取值
+    currentGift.name_cn = document.getElementById('giftNameCn').value;
+    currentGift.name_en = document.getElementById('giftNameEn').value;
+    currentGift.description = document.getElementById('giftDescription').value;
+    currentGift.country = document.getElementById('giftCountry').value;
+    currentGift.category = document.getElementById('giftCategory').value;
+    currentGift.has_green = parseInt(document.getElementById('giftHasGreen').value);
+    currentGift.poem_ripe = document.getElementById('giftPoemRipe').value;
+    currentGift.poem_green = document.getElementById('giftPoemGreen').value;
+currentGift.description_en = document.getElementById('giftDescriptionEn').value;
+currentGift.poem_ripe_en = document.getElementById('giftPoemRipeEn').value;
+currentGift.poem_green_en = document.getElementById('giftPoemGreenEn').value;
+currentGift.trigger_type = document.getElementById('giftTriggerType').value;
+currentGift.ocean_region = document.getElementById('giftOceanRegion').value;
+
+    const payload = { ...currentGift };
+    delete payload.id;
+
+    try {
+        const url = currentGift.id ? `${API_BASE}/api/admin/gifts/${currentGift.id}` : `${API_BASE}/api/admin/gifts`;
+        const method = currentGift.id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            closeGiftModal();
+            refreshGifts();
+            loadStats();
+        } else {
+            alert('保存失败');
+        }
+    } catch(e) { alert('保存失败'); }
+}
+
+// ===== 删除城市 =====
+async function deleteCity(id) {
+    if (!confirm('确定要删除这个城市吗？')) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/cities/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            refreshCities();
+            loadStats();
+        } else {
+            const result = await res.json();
+            alert('删除失败: ' + (result.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+// ===== 物产图片上传 =====
+function uploadGiftImage(input, type) {
+    if (!input.files || !input.files[0]) return;
+    if (!currentGift) { alert('请先打开一个物产编辑框'); return; }
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    fetch(`${API_BASE}/api/upload`, {
+        method: 'POST',
+        body: formData
+    }).then(res => res.json()).then(data => {
+        if (data.success) {
+            let field = '';
+            let previewId = '';
+            if (type === 'ripe') {
+                field = 'image_ripe';
+                previewId = 'giftImageRipePreview';
+            } else if (type === 'green') {
+                field = 'image_green';
+                previewId = 'giftImageGreenPreview';
+            }
+            if (!field || !previewId) return;
+
+            currentGift[field] = data.imagePath;
+            document.getElementById(previewId).innerHTML = `
+                <div class="preview-item">
+                    <img src="${API_BASE}${data.imagePath}" alt="预览">
+                    <button class="remove" onclick="this.parentElement.remove(); currentGift.${field} = '';">✕</button>
+                </div>
+            `;
+        }
+    }).catch(() => alert('上传失败'));
+}
+
+// ============================================================
+// 统计
+// ============================================================
+async function loadStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/cities`);
+        const cities = await res.json();
+        document.getElementById('statCities').textContent = cities.length || 0;
+    } catch(e) {}
+    try {
+        const res = await fetch(`${API_BASE}/api/gifts`);
+        const gifts = await res.json();
+        document.getElementById('statGifts').textContent = gifts.length || 0;
+    } catch(e) {}
+    try {
+        const res = await fetch(`${API_BASE}/api/ranking`);
+        const data = await res.json();
+        const total = data.reduce((sum, item) => sum + item.count, 0);
+        document.getElementById('statSearches').textContent = total || 0;
+    } catch(e) {}
+    document.getElementById('statImages').textContent = '—';
+}
+
+// ============================================================
+// 配图管理
+// ============================================================
+async function loadImages() {
+    const gallery = document.getElementById('imageGallery');
+    gallery.innerHTML = '<div class="empty">图片加载中...</div>';
+    let images = [];
+    try {
+        const res = await fetch(`${API_BASE}/api/cities`);
+        const cities = await res.json();
+        cities.forEach(c => {
+            if (c.origin_image) images.push({ name: c.name_cn + ' 地标图', path: c.origin_image });
+            if (c.antipode_image) images.push({ name: c.name_cn + ' 对跖点图', path: c.antipode_image });
+        });
+    } catch(e) {}
+    try {
+        const res = await fetch(`${API_BASE}/api/gifts`);
+        const gifts = await res.json();
+        gifts.forEach(g => {
+            if (g.image_ripe) images.push({ name: g.name_cn + ' 成熟版', path: g.image_ripe });
+            if (g.image_green) images.push({ name: g.name_cn + ' 青涩版', path: g.image_green });
+        });
+    } catch(e) {}
+    if (images.length === 0) {
+        gallery.innerHTML = '<div class="empty">暂无图片，请在城市或物产管理中上传</div>';
+        return;
+    }
+    gallery.innerHTML = images.map(img => `
+        <div class="preview-item" style="width:120px;height:120px;">
+            <img src="${API_BASE}${img.path}" alt="${img.name}" style="width:100%;height:100%;object-fit:cover;">
+            <div style="position:absolute;bottom:2px;left:2px;right:2px;background:rgba(0,0,0,0.6);font-size:9px;padding:2px 6px;border-radius:4px;text-align:center;color:#fff;">${img.name}</div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// 导出数据
+// ============================================================
+async function exportData() {
+    try {
+        const cities = await (await fetch(`${API_BASE}/api/cities`)).json();
+        const gifts = await (await fetch(`${API_BASE}/api/gifts`)).json();
+        const data = { cities, gifts, exportedAt: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `antipode_data_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch(e) {
+        alert('导出失败: ' + e.message);
+    }
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    refreshCities();
+    refreshGifts();
+    loadStats();
+});
+
+console.log('🗄️ 对跖点漫游局 管理后台已加载');
+console.log('📖 管理你的城市、物产和配图数据');
+</script>
+</body>
+</html>

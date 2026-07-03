@@ -1,0 +1,62 @@
+
+运行终端：
+
+cd /Users/lion/Desktop/antipode-bureau
+
+node server.js
+
+
+ngrok（直接复制下面）
+
+ngrok config add-authtoken 3FkNnXA6RRIlwXh2gcFR7lbQyao_6FskpEX56qWzC3QZuDx4P
+
+
+
+局域网测试（现在不用）
+
+http://192.168.1.5:3000/api/geocode?address=西充
+http://你的电脑IP:3000/api/geocode?address=西充
+
+
+
+
+
+强制物产命令：
+
+(async () => {
+    const city = (await fetch('/api/search?q=北京').then(r => r.json()))[0];
+    city.gift_id = 1;
+    city.lat = 39.9;
+    city.lng = 116.4;
+    showGift(city);
+})();
+
+
+
+强制物产命令：
+
+(async () => {
+    // 获取太平洋物产
+    const gifts = await fetch('/api/gifts/by-type?type=ocean&ocean_region=pacific').then(r => r.json());
+    if (gifts.length === 0) {
+        alert('太平洋物产为空，请检查数据库');
+        return;
+    }
+    const gift = gifts[0];
+    const city = {
+        lat: 31.0,
+        lng: 105.88,
+        name_cn: '西充',
+        antipode_name: '太平洋',
+        gift_id: gift.id,
+        gift_name: gift.name_cn,
+        gift_description: gift.description,
+        gift_poem_ripe: gift.poem_ripe,
+        gift_poem_ripe_en: gift.poem_ripe_en,
+        gift_image_ripe: gift.image_ripe,
+        has_green: gift.has_green,
+    };
+    showGift(city);
+})();
+
+

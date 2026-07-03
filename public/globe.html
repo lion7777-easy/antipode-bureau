@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Earth Core</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background: #050510;
+        }
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #aaa;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="info"></div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ===== 全局状态 =====
+        let currentMode = false; // false = 白昼, true = 夜间
+
+        // ===== 初始化渲染器 =====
+              const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // ===== WebGL 错误捕获（防止手机端崩溃） =====
+        renderer.domElement.addEventListener('webglcontextlost', function(event) {
+            console.error('⚠️ WebGL 上下文丢失，尝试恢复...');
+            event.preventDefault();
+            // 简单提示，不自动刷新（避免无限循环）
+            // 如果需要，可以尝试重新加载场景
+        }, false);
+        
+        renderer.domElement.addEventListener('webglcontextrestored', function() {
+            console.log('✅ WebGL 上下文已恢复');
+        }, false);
+
+        // ===== 场景、相机 =====
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 3.2);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+controls.enableZoom = true;
+controls.enablePan = true;
+controls.minDistance = 1.1;  // 相机不能比这更靠近地球中心（地球半径 1，留 0.1 缓冲）
+controls.target.set(0, 0, 0);   // ← 新增这一行
+
+        // ===== 星空 =====
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            starPositions[i * 3] = (Math.random() - 0.5) * 2000;
+            starPositions[i * 3 + 1] = (Math.random() - 0.5) * 2000;
+            starPositions[i * 3 + 2] = (Math.random() - 0.5) * 2000 - 50;
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // ===== 纹理加载器 =====
+        const textureLoader = new THREE.TextureLoader();
+
+        // ===== 纹理加载（优先本地，失败时使用 CDN fallback） =====
+
+/// 日间纹理（直接使用 CDN，稳定可靠）
+const earthMap = textureLoader.load(
+   '/images/earth-blue-marble.jpg',  // 请替换为您的实际文件名
+    () => console.log('✅ 日间纹理加载成功（CDN）'),
+    undefined,
+    (err) => console.error('❌ 日间纹理加载失败:', err)
+);
+
+// 夜景纹理（保持本地，但增加 fallback）
+const nightMap = textureLoader.load('/images/earth_night.jpg', 
+    (tex) => {
+        console.log('✅ 夜景纹理加载成功（本地）');
+        earthMaterial.uniforms.nightMap.value = tex;
+    },
+    undefined,
+    (err) => {
+        console.warn('⚠️ 本地夜景纹理加载失败，改用官方夜景纹理', err);
+        const fallbackTex = textureLoader.load('https://threejs.org/examples/textures/planets/earth_lights_2048.png');
+        earthMaterial.uniforms.nightMap.value = fallbackTex;
+    }
+);
+
+        const earthSpecularMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
+        const earthNormalMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg');
+        const cloudMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png');
+
+        // =============================================================
+        // 自定义着色器材质 —— 基于光照方向混合日间/夜间纹理
+        // =============================================================
+        const vertexShader = `
+            varying vec3 vNormal;
+            varying vec2 vUv;
+            void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform sampler2D dayMap;
+            uniform sampler2D nightMap;
+            uniform vec3 lightDirection;
+            uniform float mixFactor;
+
+            varying vec3 vNormal;
+            varying vec2 vUv;
+
+            void main() {
+                vec3 normal = normalize(vNormal);
+                vec3 lightDir = normalize(lightDirection);
+                float intensity = max(0.0, dot(normal, -lightDir));
+                
+                vec4 dayColor = texture2D(dayMap, vUv);
+                vec4 nightColor = texture2D(nightMap, vUv);
+                
+               // 日间纹理光照计算（进一步调亮）
+// 修改为（大幅提高环境光，降低漫反射依赖）
+float ambient = 1.4;      // 从 0.85 提升到 1.4，让暗部直接变亮
+float diffuse = max(0.0, dot(normal, -lightDir)) * 0.3; // 漫反射稍微降低，保留立体感
+float lighting = ambient + diffuse; // 范围约 1.4 ~ 1.7
+lighting = min(lighting, 1.5); // 放宽上限
+vec3 litDayColor = dayColor.rgb * lighting;
+                
+                float nightWeight = (1.0 - intensity) * mixFactor;
+                nightWeight = smoothstep(0.1, 0.6, nightWeight);
+                
+                vec4 finalColor = vec4(mix(litDayColor, nightColor.rgb, nightWeight), 1.0);
+                gl_FragColor = finalColor;
+            }
+        `;
+
+        // 创建着色器材质
+        const earthMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                dayMap: { value: earthMap },
+                nightMap: { value: nightMap },
+                lightDirection: { value: new THREE.Vector3(1, 0, 0) },
+                mixFactor: { value: 0.0 }
+            },
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+        });
+
+        const earthGeometry = new THREE.SphereGeometry(1, 128, 128);
+        const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earthMesh);
+
+        // ===== 云层 =====
+        const cloudGeometry = new THREE.SphereGeometry(1.01, 128, 128);
+        const cloudMaterial = new THREE.MeshPhongMaterial({
+            map: cloudMap,
+            transparent: true,
+            opacity: 0.5,
+        });
+        const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        scene.add(cloudMesh);
+
+        // ===== 光照 =====
+        const ambientLight = new THREE.AmbientLight(0x6688aa, 0.8);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        dirLight.position.set(5, 3, 5);
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0x4488ff, 0.6);
+        fillLight.position.set(-5, -1, -5);
+        scene.add(fillLight);
+
+        const bottomLight = new THREE.DirectionalLight(0x4466aa, 0.3);
+        bottomLight.position.set(0, -5, 0);
+        scene.add(bottomLight);
+
+        const backLight = new THREE.PointLight(0x4466cc, 0.4);
+        backLight.position.set(-3, -1, -4);
+        scene.add(backLight);
+
+        // ===== 标记组 =====
+        let markerGroup = new THREE.Group();
+        let rayGroup = new THREE.Group();
+        scene.add(markerGroup);
+        scene.add(rayGroup);
+
+        // ===== 工具函数 =====
+        function lonLatToVector3(lon, lat, radius = 1.0) {
+            const phi = (90 - lat) * Math.PI / 180;
+            const theta = -lon * Math.PI / 180;
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.cos(phi);
+            const z = radius * Math.sin(phi) * Math.sin(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+        // ===== 坐标格式化（与2D地图一致） =====
+        function formatCoord(lat, lng) {
+            if (lat === undefined || lng === undefined) return '—';
+            const latDir = lat >= 0 ? '°N' : '°S';
+            const lngDir = lng >= 0 ? '°E' : '°W';
+            return `${Math.abs(lat).toFixed(4)}${latDir}, ${Math.abs(lng).toFixed(4)}${lngDir}`;
+        }
+
+        // ===== 创建 3D 水滴标记（固定屏幕尺寸，指向地心） =====
+        function create3DPin(color, position) {
+            // 水滴轮廓：尖头朝 +Y（指向地心），底部圆润
+            const pts = [];
+            // 尖头（指向地心）
+            pts.push(new THREE.Vector2(0.000, 0.40));
+            pts.push(new THREE.Vector2(0.010, 0.38));
+            pts.push(new THREE.Vector2(0.025, 0.34));
+            pts.push(new THREE.Vector2(0.045, 0.28));
+            pts.push(new THREE.Vector2(0.065, 0.20));
+            pts.push(new THREE.Vector2(0.080, 0.12));
+            pts.push(new THREE.Vector2(0.085, 0.04));
+            pts.push(new THREE.Vector2(0.085, -0.04));
+            pts.push(new THREE.Vector2(0.080, -0.12));
+            pts.push(new THREE.Vector2(0.070, -0.20));
+            pts.push(new THREE.Vector2(0.055, -0.28));
+            pts.push(new THREE.Vector2(0.035, -0.34));
+            pts.push(new THREE.Vector2(0.020, -0.38));
+            pts.push(new THREE.Vector2(0.008, -0.39));
+            pts.push(new THREE.Vector2(0.000, -0.40));
+
+            const geometry = new THREE.LatheGeometry(pts, 24);
+            // 将颜色调暗（降低亮度），并减少自发光强度
+const darkerColor = new THREE.Color(color);
+darkerColor.multiplyScalar(0.7); // 亮度降低 30%
+
+const material = new THREE.MeshPhongMaterial({
+    color: darkerColor,          // 基础颜色调暗
+    emissive: color,             // 自发光保留原始颜色（提供一些亮度补偿）
+    emissiveIntensity: 0.15,     // 降低自发光强度
+    shininess: 20,               // 稍微降低高光
+    transparent: false,
+    side: THREE.DoubleSide,
+});
+
+            const mesh = new THREE.Mesh(geometry, material);
+
+            // 定位在地球表面外 2% 处
+            const pos = position.clone().normalize().multiplyScalar(1.02);
+            mesh.position.copy(pos);
+
+            // 旋转使尖头（+Y）指向地心（-pos 方向）
+            const up = pos.clone().normalize().negate();
+            const quat = new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                up
+            );
+            mesh.quaternion.copy(quat);
+
+            // 基础尺寸
+            mesh.userData.baseSize = 0.015;
+
+            return mesh;
+        }
+
+        function createRayLine(p1, p2, extend = 4.0) {
+    const dir = p2.clone().sub(p1).normalize();
+    const start = p1.clone().sub(dir.clone().multiplyScalar(extend));
+    const end = p2.clone().add(dir.clone().multiplyScalar(extend));
+    const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const material = new THREE.LineBasicMaterial({
+        color: 0x88aaff,
+        transparent: true,
+        opacity: 0.3   // 可调整 0.1~0.8
+    });
+    return new THREE.Line(geometry, material);
+}
+
+        function createParticleStream(p1, p2, extend = 4.0, count = 150) {
+    const dir = p2.clone().sub(p1).normalize();
+    const start = p1.clone().sub(dir.clone().multiplyScalar(extend));
+    const end = p2.clone().add(dir.clone().multiplyScalar(extend));
+
+    // 生成初始位置
+    const positions = new Float32Array(count * 3);
+    // 存储每个粒子的进度 (0~1)
+    const progress = new Float32Array(count);
+    // 存储起点和终点供动画使用
+    const startVec = start.clone();
+    const endVec = end.clone();
+
+    for (let i = 0; i < count; i++) {
+        const t = i / count;
+        progress[i] = t;
+        const pos = start.clone().lerp(end, t);
+        positions[i*3] = pos.x;
+        positions[i*3+1] = pos.y;
+        positions[i*3+2] = pos.z;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    // 存储进度到 geometry.userData（以便在动画中访问）
+    geometry.userData.progress = progress;
+    geometry.userData.start = startVec;
+    geometry.userData.end = endVec;
+    geometry.userData.speed = 0.01; // 每帧移动速度（可调）
+
+    const material = new THREE.PointsMaterial({
+        color: 0xaaffff,
+        size: 0.008,          // 稍微大一点，更容易看到
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: 0.8,
+    });
+
+    const points = new THREE.Points(geometry, material);
+    points.userData.isParticleStream = true; // 标记以便动画中识别
+    return points;
+}
+        let currentRay = null;
+        let currentParticles = null;
+
+        function updateEarth(originLat, originLng) {
+            while (markerGroup.children.length) markerGroup.remove(markerGroup.children[0]);
+            if (currentRay) rayGroup.remove(currentRay);
+            if (currentParticles) rayGroup.remove(currentParticles);
+
+            let antiLng = originLng + 180;
+            if (antiLng > 180) antiLng -= 360;
+            const antipodeLat = -originLat;
+
+            const p1 = lonLatToVector3(originLng, originLat, 1.0);
+            const p2 = lonLatToVector3(antiLng, antipodeLat, 1.0);
+
+            const orangePin = create3DPin('#e8923a', p1);
+            const bluePin = create3DPin('#2898e8', p2);
+            markerGroup.add(orangePin, bluePin);
+
+            currentRay = createRayLine(p1, p2, 100);
+            currentParticles = createParticleStream(p1, p2, 100);
+            rayGroup.add(currentRay, currentParticles);
+
+            const targetDir = p1.clone().normalize();
+camera.position.copy(targetDir.multiplyScalar(3.2));
+camera.lookAt(0, 0, 0);                // 始终看向地球中心
+controls.target.set(0, 0, 0);          // 目标固定为中心
+controls.update();
+
+            controls.autoRotate = false;
+            setTimeout(() => { controls.autoRotate = true; }, 2000);
+
+           document.getElementById('info').innerHTML =
+    `📍 ${formatCoord(originLat, originLng)} &nbsp;&nbsp;↔️&nbsp;&nbsp; 🌎 ${formatCoord(antipodeLat, antiLng)}`;
+
+            updateDayNightMode(currentMode);
+        }
+
+        // ===== 日夜切换函数 =====
+        function updateDayNightMode(isNight) {
+            currentMode = isNight;
+            earthMaterial.uniforms.mixFactor.value = isNight ? 0.5 : 0.0;
+            
+            if (isNight) {
+                ambientLight.intensity = 0.3;
+                dirLight.intensity = 0.8;
+                if (typeof fillLight !== 'undefined') fillLight.intensity = 0.1;
+            } else {
+                ambientLight.intensity = 0.8;
+                dirLight.intensity = 2.0;
+                if (typeof fillLight !== 'undefined') fillLight.intensity = 0.6;
+            }
+        }
+
+        // 初始化为白昼
+        updateDayNightMode(false);
+
+        // ===== 消息监听 =====
+        window.addEventListener('message', (event) => {
+            if (event.data && typeof event.data.originLat === 'number') {
+                updateEarth(event.data.originLat, event.data.originLng);
+            }
+            if (event.data && event.data.type === 'toggle-day-night') {
+                updateDayNightMode(event.data.isNightMode);
+            }
+        });
+
+        // ===== 初始状态 =====
+        updateEarth(30.7448, 109.4755);
+        window.parent.postMessage({ type: 'globe-ready' }, '*');
+
+               // ===== 动画循环（动态太阳光 + 标记缩放 + 粒子穿梭） =====
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1. 计算光源位置
+            const speed = 360 / 1440;
+            const angle = performance.now() / 1000 * speed;
+            const radius = 10;
+            const lightX = radius * Math.cos(angle * Math.PI / 180);
+            const lightZ = radius * Math.sin(angle * Math.PI / 180);
+            const seasonAngle = performance.now() / 1000 * (360 / 5760);
+            const declination = 23.5 * Math.sin(seasonAngle * Math.PI / 180);
+            const lightY = radius * Math.sin(declination * Math.PI / 180);
+            dirLight.position.set(lightX, lightY, lightZ);
+
+            // 2. 更新着色器光源方向
+            const lightDir = new THREE.Vector3(lightX, lightY, lightZ).normalize();
+            earthMaterial.uniforms.lightDirection.value.copy(lightDir);
+
+            // 3. 固定 3D 标记屏幕尺寸
+            const cameraDistance = camera.position.length();
+            const desiredPixels = 0.1;
+            const fovRad = camera.fov * Math.PI / 180;
+            const worldSize = (desiredPixels / window.innerHeight) * 2 * Math.tan(fovRad / 2) * cameraDistance;
+            const clampedWorldSize = Math.min(Math.max(worldSize, 0.003), 0.08);
+
+            markerGroup.children.forEach(child => {
+                if (child.isMesh && child.userData && child.userData.baseSize) {
+                    const base = child.userData.baseSize;
+                    let scale = clampedWorldSize / base;
+                    scale = Math.min(Math.max(scale, 0.3), 6.0);
+                    scale *= 0.5;
+                    child.scale.set(scale, scale, scale);
+                }
+            });
+
+            // ===== 4. 更新粒子流（穿梭动画） =====
+            if (currentParticles) {
+                const geometry = currentParticles.geometry;
+                const posAttr = geometry.attributes.position;
+                const progress = geometry.userData.progress;
+                const start = geometry.userData.start;
+                const end = geometry.userData.end;
+                const speedVal = geometry.userData.speed || 0.05;
+
+                if (progress && start && end) {
+                    const count = progress.length;
+                    const positions = posAttr.array;
+                    for (let i = 0; i < count; i++) {
+                        progress[i] += speedVal;
+                        if (progress[i] > 1.0) {
+                            progress[i] = 0.0;
+                        }
+                        const t = progress[i];
+                        const pos = start.clone().lerp(end, t);
+                        positions[i*3] = pos.x;
+                        positions[i*3+1] = pos.y;
+                        positions[i*3+2] = pos.z;
+                    }
+                    posAttr.needsUpdate = true;
+                }
+            }
+
+            controls.update();
+            cloudMesh.rotation.y += 0.0005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ===== 暴露调试对象 =====
+        window.__debug = {
+            earthMaterial,
+            scene,
+            camera,
+            controls,
+            updateDayNightMode,
+            dirLight,
+            ambientLight,
+            fillLight,
+            nightMap,
+            currentMode: () => currentMode
+        };
+        console.log('🌍 3D地球已加载，调试对象已暴露为 window.__debug');
+        console.log('💡 在控制台输入 __debug.updateDayNightMode(true) 可切换夜景');
+    </script>
+</body>
+</html>
