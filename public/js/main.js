@@ -1687,13 +1687,23 @@ const padding = 16;
     ctx.save();
     ctx.clip(stampPath);
     if (item.img) {
-        // 1. 绘制地图
         ctx.drawImage(item.img, rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
 
-        // 2. 绘制水滴标记（地图中心）
-        const markerSize = Math.min(rw, rh) * 0.10;
-        const color = item.label === '📍 原始位置' ? '#e8923a' : '#2898e8';
-        drawTeardropOnCanvas(ctx, rx + rw / 2, ry + rh / 2, color, markerSize);
+        // ===== 判断是否为数据库图片 =====
+        let isDbImg = false;
+        if (item.label === '📍 原始位置') {
+            isDbImg = !!(city.origin_image && originImg && item.img === originImg);
+        } else if (item.label === '🌎 对跖点') {
+            isDbImg = !!(city.antipode_image && antipodeImg && item.img === antipodeImg);
+        }
+        // 只有非数据库图片才绘制水滴标记
+        if (!isDbImg) {
+            const markerSize = Math.min(rw, rh) * 0.10;
+            const color = item.label === '📍 原始位置' ? '#e8923a' : '#2898e8';
+            drawTeardropOnCanvas(ctx, rx + rw / 2, ry + rh / 2, color, markerSize);
+        }
+        // ================================
+
     } else {
         ctx.fillStyle = '#e8e0d6';
         ctx.fillRect(rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
@@ -2407,10 +2417,14 @@ if (productImg) {
         // 地图初始化 - 为每个地图独立创建图层（修复左侧白图）
         // ============================================================
         function initMaps() {
-            if (!window.AMap) {
-                console.warn('AMap未加载');
-                return;
-            }
+            // ===== 新增：检查 AMap 是否加载 =====
+    if (!window.AMap) {
+        console.warn('⚠️ AMap 未加载，地图功能不可用');
+        document.querySelectorAll('.map-container').forEach(el => {
+            el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.3);font-size:14px;">地图加载中...</div>';
+        });
+        return;
+    }
 
                        // 为左侧地图独立创建图层
             var satelliteLeft = new AMap.TileLayer.Satellite({
@@ -2605,7 +2619,9 @@ if (dayNightToggle) {
         // ================================================================
         (async function loadCesiumIfNeeded() {
             // 检测是否为桌面端
-            const isDesktop = window.innerWidth > 1024 && !('ontouchstart' in window);
+           const body = document.getElementById('appBody');
+const isMobile = body?.classList.contains('is-mobile') || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+const isDesktop = !isMobile && window.innerWidth > 1024;
             if (!isDesktop) {
                 console.log('📱 移动端：保持 Three.js 地球');
                 // 确保 Three.js 显示
