@@ -24,8 +24,8 @@ app.use(express.json());
 // 从环境变量读取密码，若未设置则使用默认值（请务必在 Render 中设置）
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'your-secure-password-here';
 
-// 1. 保护 admin.html 页面（单独路由，优先于静态文件）
-app.get('/admin.html', (req, res, next) => {
+// 保护 admin.html 页面（使用 app.use 确保优先级）
+app.use('/admin.html', (req, res, next) => {
     const auth = req.headers.authorization;
     if (!auth) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
@@ -34,7 +34,7 @@ app.get('/admin.html', (req, res, next) => {
     const base64 = auth.split(' ')[1];
     const [username, password] = Buffer.from(base64, 'base64').toString().split(':');
     if (password === ADMIN_PASSWORD) {
-        // 认证通过，返回 admin.html 文件
+        // 认证通过，继续处理（这里需要手动返回 admin.html）
         res.sendFile(path.join(__dirname, 'public', 'admin.html'));
     } else {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
