@@ -229,7 +229,7 @@ app.get('/api/static-map', async (req, res) => {
     }
 
     const https = require('https');
-    const tk = '76b0999164f9285ceb1ff3a6ce53b5cd';
+    const tk = '7da0bbd486e5a061e5329472bed5ba41';
     
     // 解析颜色（支持两种格式：#e8923a 或 0xE8923A）
     let markerColor = '#ff0000'; // 默认红色
