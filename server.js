@@ -217,111 +217,22 @@ const AMAP_KEY = 'd6846dea147b497922afd3f9b121b429';
         return res.status(500).json({ success: false, error: error.message });
     }
 });
-// ===== 静态地图代理接口（天地图官方正确版） =====
-// ===== 在文件顶部添加 canvas 依赖（如果尚未安装） =====
-// 需要先安装: npm install canvas
-const { createCanvas, loadImage } = require('canvas');
-
 app.get('/api/static-map', async (req, res) => {
-    const { lng, lat, size = '270', zoom = '3', color = 'red' } = req.query;
+    const { lng, lat, size = '270', zoom = '3' } = req.query;
     if (!lng || !lat) {
         return res.status(400).json({ error: '缺少经纬度参数' });
     }
-
+    const tk = '76b0999164f9285ceb1ff3a6ce53b5cd';  // 统一 Token
+    const url = `https://api.tianditu.gov.cn/staticimage?center=${lng},${lat}&zoom=${zoom}&width=${size}&height=${size}&layer=img&tk=${tk}`;
+    
     const https = require('https');
-    const tk = '7da0bbd486e5a061e5329472bed5ba41';
-    
-    // 解析颜色（支持两种格式：#e8923a 或 0xE8923A）
-    let markerColor = '#ff0000'; // 默认红色
-    if (color) {
-        let hex = color.replace('0x', '#');
-        if (hex.startsWith('#')) {
-            markerColor = hex;
-        } else {
-            markerColor = '#' + color;
-        }
-    }
-    
-    // 天地图静态图 URL（不加 markers，我们自己画）
-    const tdtUrl = `https://api.tianditu.gov.cn/staticimage?center=${lng},${lat}&zoom=${zoom}&width=${size}&height=${size}&layer=img&tk=${tk}`;
-
-    try {
-        // 1. 获取天地图底图
-        const imageBuffer = await new Promise((resolve, reject) => {
-            https.get(tdtUrl, (tdtRes) => {
-                const chunks = [];
-                tdtRes.on('data', chunk => chunks.push(chunk));
-                tdtRes.on('end', () => resolve(Buffer.concat(chunks)));
-                tdtRes.on('error', reject);
-            }).on('error', reject);
-        });
-
-        // 2. 用 canvas 加载图片
-        const img = await loadImage(imageBuffer);
-        const canvas = createCanvas(img.width, img.height);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-
-        // 3. 计算标记位置（天地图静态图中心就是经纬度位置）
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-
-               // 4. 绘制水滴标记（使用自定义颜色，尖端朝下，尾部圆钝）
-        const size_px = 28; // 标记大小
-        
-        // 绘制水滴形状
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        
-        ctx.beginPath();
-        // 水滴路径：尖端朝下（指向南方），尾部圆润（上方）
-        ctx.moveTo(cx, cy + size_px * 0.8);                       // 尖端位置（下方）
-        ctx.bezierCurveTo(
-            cx + size_px * 0.5, cy + size_px * 0.2,               // 右下控制点
-            cx + size_px * 0.6, cy - size_px * 0.1,               // 右上控制点
-            cx + size_px * 0.3, cy - size_px * 0.5                // 上右控制点
-        );
-        ctx.bezierCurveTo(
-            cx + size_px * 0.15, cy - size_px * 0.7,              // 顶部右侧
-            cx - size_px * 0.15, cy - size_px * 0.7,              // 顶部左侧（对称）
-            cx - size_px * 0.3, cy - size_px * 0.5                // 上左控制点
-        );
-        ctx.bezierCurveTo(
-            cx - size_px * 0.6, cy - size_px * 0.1,               // 左上控制点
-            cx - size_px * 0.5, cy + size_px * 0.2,               // 左下控制点
-            cx, cy + size_px * 0.8                                // 回到尖端
-        );
-        ctx.closePath();
-        
-        // 填充颜色
-        ctx.fillStyle = markerColor;
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        
-        // 高光点（移到上方圆润区域）
-        ctx.beginPath();
-        ctx.arc(cx - size_px * 0.2, cy - size_px * 0.3, size_px * 0.12, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fill();
-        
-        ctx.restore();
-
-        // 5. 输出图片
-        res.setHeader('Content-Type', 'image/png');
-        res.send(canvas.toBuffer('image/png'));
-
-    } catch (err) {
-        console.error('生成静态地图失败:', err.message);
+    https.get(url, (tdtRes) => {
+        res.setHeader('Content-Type', tdtRes.headers['content-type'] || 'image/png');
+        tdtRes.pipe(res);
+    }).on('error', (err) => {
+        console.error('静态地图代理失败:', err.message);
         res.status(500).end();
-    }
+    });
 });
 // ===== 逆地理编码代理接口（天地图 + 双重兜底） =====
 app.get('/api/reverse-geocode', (req, res) => {

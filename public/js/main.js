@@ -725,10 +725,10 @@ async function searchWithAmapDomestic(keyword) {
             // 2. 添加到历史
             addToHistory(keyword);
 
-            // 3. 触发礼物（如果 cityData 有 gift_id）
-            if (cityData && cityData.gift_id) {
-                triggerGiftForLocation(lat, lng, cityData);
-            }
+           // 3. 触发礼物（基于地理坐标，不依赖 gift_id）
+// 对于数据库城市，cityData 有完整信息；对于非数据库城市，传入一个包含名称的简单对象
+const cityObj = cityData || { name_cn: keyword };
+triggerGiftForLocation(lat, lng, cityObj);
 
             // 4. 存入缓存
             const poemHTML = document.getElementById('poemDisplay').innerHTML;
@@ -738,7 +738,7 @@ async function searchWithAmapDomestic(keyword) {
                 lng: lng,
                 poemHTML: poemHTML,
                 cityName: keyword,
-                giftData: cityData?.gift_id ? { hasGift: true } : null
+                giftData: { hasGift: true }   // 总是存在，用于触发逻辑（实际触发不依赖它）
             });
 
             // 5. 累加个人日限
@@ -763,10 +763,8 @@ async function searchWithAmapDomestic(keyword) {
         updateAll(cached.lat, cached.lng);
         document.getElementById('poemDisplay').innerHTML = cached.poemHTML;
         addToHistory(cached.cityName);
-        // 如果有礼物数据，触发礼物
-        if (cached.giftData) {
-            triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
-        }
+        // 缓存命中时也始终触发物产
+triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
         return;
     }
 
@@ -777,44 +775,132 @@ async function searchWithAmapDomestic(keyword) {
         return;
     }
 
-    isSearching = true;
+   isSearching = true;
     document.getElementById('searchBtn').disabled = true;
-// ===== 新增：优先尝试天地图（国内地址） =====
-// ★★★ 非中文关键词不经过天地图 ★★★
-const isChineseKeyword = /[\u4e00-\u9fa5]/.test(searchKeyword);
-if (isChineseKeyword) {
-    // 1. 优先高德（国内精度最高）
+
+    // ============================================================
+    // 第一步：先查数据库（任何关键词都优先）
+    // ============================================================
     try {
-        const amapResult = await searchWithAmapDomestic(searchKeyword);
-        if (amapResult) {
-            console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
-            await handleSearchSuccess(amapResult.lat, amapResult.lng, searchKeyword, null);
+        const dbRes = await fetch(`/api/search?q=${encodeURIComponent(searchKeyword)}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const dbData = await dbRes.json();
+        if (dbData && dbData.length > 0) {
+            // 命中数据库，直接使用
+            const city = dbData[0];
+            currentCityData = city;
+            updateAll(city.lat, city.lng);
+            const displayCN = city.poem || DEFAULT_POEM_CN;
+            const displayEN = city.poem_en || DEFAULT_POEM_EN;
+            document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}`;
+            addToHistory(city.name_cn);
+            await handleSearchSuccess(city.lat, city.lng, city.name_cn, city);
             isSearching = false;
             document.getElementById('searchBtn').disabled = false;
             showLoading(false);
             return;
         }
     } catch (e) {
-        // 高德失败，静默降级
-        console.log('⚠️ 高德失败，降级到天地图');
+        console.log('⚠️ 数据库查询失败，继续走地理编码:', e.message);
     }
-    // 2. 天地图作为备选（免费、无配额）
-    try {
-        const tianDiTuResult = await searchWithTianDiTu(searchKeyword);
-        if (tianDiTuResult) {
-            console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
-            await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, null);
-            isSearching = false;
-            document.getElementById('searchBtn').disabled = false;
-            showLoading(false);
-            return;
+
+    // ============================================================
+    // 第二步：未命中数据库 → 走地理编码
+    // ============================================================
+    // ===== 优先尝试天地图（国内地址） =====
+    const isChineseKeyword = /[\u4e00-\u9fa5]/.test(searchKeyword);
+    if (isChineseKeyword) {
+        // 1. 优先高德（国内精度最高）
+        try {
+            const amapResult = await searchWithAmapDomestic(searchKeyword);
+            if (amapResult) {
+                console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
+                // ---- 获取对跖点名称 ----
+                let antipodeName = '地球另一端';
+                let antipodeNameEn = '';
+                try {
+                    const anti = calculateAntipode(amapResult.lat, amapResult.lng);
+                    const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+                        headers: { 'ngrok-skip-browser-warning': 'true' }
+                    });
+                    const geoData = await geoRes.json();
+                    if (geoData.success && geoData.name) {
+                        antipodeName = geoData.name;
+                        antipodeNameEn = geoData.nameEn || '';
+                    }
+                } catch (e) {
+                    console.warn('获取对跖点名称失败:', e);
+                }
+                // ---- 构造临时城市数据 ----
+const tempCityData = {
+    lat: amapResult.lat,
+    lng: amapResult.lng,
+    name_cn: searchKeyword,
+    name_en: nameEn,
+    antipode_name: antipodeName,
+    antipode_name_en: antipodeNameEn,
+    poem: '「这一刻，你与地球背面，同频呼吸。」',
+    poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
+    origin_image: '',
+    antipode_image: ''
+};
+                currentCityData = tempCityData;
+                await handleSearchSuccess(amapResult.lat, amapResult.lng, searchKeyword, tempCityData);
+                isSearching = false;
+                document.getElementById('searchBtn').disabled = false;
+                showLoading(false);
+                return;
+            }
+        } catch (e) {
+            console.log('⚠️ 高德失败，降级到天地图');
         }
-    } catch (e) {
-        console.log('⚠️ 天地图失败，降级到竞赛');
+        // 2. 天地图作为备选
+        try {
+            const tianDiTuResult = await searchWithTianDiTu(searchKeyword);
+            if (tianDiTuResult) {
+                console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
+                let antipodeName = '地球另一端';
+                let antipodeNameEn = '';
+                try {
+                    const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
+                    const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+                        headers: { 'ngrok-skip-browser-warning': 'true' }
+                    });
+                    const geoData = await geoRes.json();
+                    if (geoData.success && geoData.name) {
+                        antipodeName = geoData.name;
+                        antipodeNameEn = geoData.nameEn || '';
+                    }
+                } catch (e) {
+                    console.warn('获取对跖点名称失败:', e);
+                }
+                // ---- 构造临时城市数据 ----
+const tempCityData = {
+    lat: amapResult.lat,
+    lng: amapResult.lng,
+    name_cn: searchKeyword,
+    name_en: nameEn,
+    antipode_name: antipodeName,
+    antipode_name_en: antipodeNameEn,
+    poem: '「这一刻，你与地球背面，同频呼吸。」',
+    poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
+    origin_image: '',
+    antipode_image: ''
+};
+                currentCityData = tempCityData;
+                await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
+                isSearching = false;
+                document.getElementById('searchBtn').disabled = false;
+                showLoading(false);
+                return;
+            }
+        } catch (e) {
+            console.log('⚠️ 天地图失败，降级到竞赛');
+        }
+    } else {
+        console.log('⚠️ 关键词非中文，跳过天地图');
     }
-} else {
-    console.log('⚠️ 关键词非中文，跳过天地图');
-}
 
     // ===== 检测经纬度（支持多种格式） =====
     const coord = parseCoordinate(searchKeyword);
@@ -831,7 +917,7 @@ if (isChineseKeyword) {
                 lat,
                 lng,
                 name_cn: `📍 ${formatCoord(lat, lng)}`,
-                name_en: '',
+                name_en: nameEn,
                 antipode_name: '地球另一端',
                 antipode_name_en: '',
                 poem: '「这一刻，你与地球背面，同频呼吸。」\nIn this moment, you breathe in sync with the far side of the earth.',
@@ -1212,20 +1298,29 @@ document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}
 function isInChina(lat, lng) {
     return lat >= 18 && lat <= 54 && lng >= 73 && lng <= 135;
 }
-// ===== 判断对跖点所在区域（陆地/太平洋/大西洋） =====
 function getAntipodeRegion(antiLat, antiLng) {
-    // 南美洲陆地范围
-    const isSouthAmerica = antiLat > -55 && antiLat < 12 && antiLng > -75 && antiLng < -34;
-    
+    // ===== 1. 太平洋优先（南美西海岸外海） =====
+    // 放宽到 -71°，覆盖更多海洋区域
+    if (antiLng < -71.2 && antiLat > -55 && antiLat < -12) {
+        return { type: 'ocean', region: 'pacific' };
+    }
+    // 太平洋宽泛区域（东经>120 或 西经<-80）
+    if ((antiLng >= 120 && antiLng <= 180) || (antiLng >= -180 && antiLng < -80)) {
+        return { type: 'ocean', region: 'pacific' };
+    }
+
+    // ===== 2. 南美洲陆地 =====
+    const isSouthAmerica = antiLat > -55 && antiLat < 12 && antiLng > -82 && antiLng < -34;
     if (isSouthAmerica) {
-        // 智利
+        // 智利：经度范围 -72 到 -65（严格限定）
         if (antiLat > -55 && antiLat < -20 && antiLng >= -72 && antiLng < -65) {
             return { type: 'land', country: '智利' };
         }
-        // 阿根廷
+        // 阿根廷：经度 -65 到 -55
         if (antiLat > -55 && antiLat < -20 && antiLng >= -65 && antiLng < -55) {
             return { type: 'land', country: '阿根廷' };
         }
+        // ... 其他国家判断（秘鲁、巴西等）
         // 秘鲁/厄瓜多尔
         if (antiLat > -18 && antiLat < 0 && antiLng > -82 && antiLng < -68) {
             return { type: 'land', country: '秘鲁' };
@@ -1246,27 +1341,48 @@ function getAntipodeRegion(antiLat, antiLng) {
         if (antiLat > -35 && antiLat < -30 && antiLng > -58 && antiLng < -53) {
             return { type: 'land', country: '乌拉圭' };
         }
-        // 默认南美洲
-        return { type: 'land', country: '南美洲' };
+        // 默认南美洲 → 改为 '阿根廷'（确保匹配数据库）
+        return { type: 'land', country: '阿根廷' };
     }
-    
-    // 太平洋：东经120°~180° 或 西经80°~180°
-    const isPacific = (antiLng >= 120 && antiLng <= 180) || (antiLng >= -180 && antiLng <= -80);
-    if (isPacific) {
-        return { type: 'ocean', region: 'pacific' };
-    }
-    
-    // 大西洋：西经75°~10°
+
+    // ===== 3. 大西洋 =====
     if (antiLng >= -75 && antiLng <= -10) {
         return { type: 'ocean', region: 'atlantic' };
     }
-    
-    // 默认太平洋
+
+    // ===== 4. 印度洋 =====
+    if (antiLng >= 30 && antiLng <= 120) {
+        return { type: 'ocean', region: 'indian' };
+    }
+
+    // ===== 5. 非洲 =====
+    if (antiLng >= -15 && antiLng <= 50 && antiLat > -35 && antiLat < 37) {
+        return { type: 'land', country: '非洲' };
+    }
+
+    // ===== 6. 欧洲 =====
+    if (antiLat > 35 && antiLat < 70 && antiLng > -10 && antiLng < 40) {
+        return { type: 'land', country: '欧洲' };
+    }
+
+    // ===== 7. 亚洲 =====
+    if (antiLat > 10 && antiLat < 75 && antiLng > 40 && antiLng < 180) {
+        return { type: 'land', country: '亚洲' };
+    }
+
+    // ===== 8. 大洋洲 =====
+    if (antiLat > -45 && antiLat < -10 && antiLng > 110 && antiLng < 180) {
+        return { type: 'land', country: '大洋洲' };
+    }
+
+    // ===== 9. 兜底 =====
     return { type: 'ocean', region: 'pacific' };
 }
 
+
 // ===== 物产触发核心函数（基于地理坐标，不依赖数据库关联） =====
 function triggerGiftForLocation(lat, lng, cityObj) {
+    console.log('🔔 triggerGiftForLocation 被调用', { lat, lng, cityObj });
     // 1. 判断原点是否在中国
     if (!isInChina(lat, lng)) return;
     
@@ -1384,6 +1500,48 @@ ctx.fillText(brandMain, W/2, 20);   // 移除星标
    const brandSub = detectBrand() === 'en' ? '对跖点漫游局' : 'Antipodal Bureau';
 ctx.fillText(brandSub, W/2, 60);
     ctx.globalAlpha = 1.0;
+function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + size * 0.8);
+    ctx.bezierCurveTo(
+        cx + size * 0.5, cy + size * 0.2,
+        cx + size * 0.6, cy - size * 0.1,
+        cx + size * 0.3, cy - size * 0.5
+    );
+    ctx.bezierCurveTo(
+        cx + size * 0.15, cy - size * 0.7,
+        cx - size * 0.15, cy - size * 0.7,
+        cx - size * 0.3, cy - size * 0.5
+    );
+    ctx.bezierCurveTo(
+        cx - size * 0.6, cy - size * 0.1,
+        cx - size * 0.5, cy + size * 0.2,
+        cx, cy + size * 0.8
+    );
+    ctx.closePath();
+
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx - size * 0.2, cy - size * 0.3, size * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+
+    ctx.restore();
+}
 
     // ===== 3. 地图区域 =====
     const topMargin = 76;
@@ -1499,53 +1657,58 @@ ctx.fillText(brandSub, W/2, 60);
     }
 
     // ---- 3d. 绘制两张邮票地图 ----
-    const x1 = 24;
-    const x2 = 24 + imgWidth + gap;
-    const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
-    const padding = 16;
+const x1 = 24;
+const x2 = 24 + imgWidth + gap;
+const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
+const padding = 16;
 
-    [
-        { img: originImg, x: x1, label: '📍 原始位置' },
-        { img: antipodeImg, x: x2, label: '🌎 对跖点' }
-    ].forEach((item) => {
-        const rx = item.x;
-        const ry = y;
-        const rw = imgWidth;
-        const rh = imgHeight;
+[
+    { img: originImg, x: x1, label: '📍 原始位置' },
+    { img: antipodeImg, x: x2, label: '🌎 对跖点' }
+].forEach((item) => {
+    const rx = item.x;
+    const ry = y;
+    const rw = imgWidth;
+    const rh = imgHeight;
 
-        const stampPath = createStampPath(rx, ry, rw, rh);
+    const stampPath = createStampPath(rx, ry, rw, rh);
 
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.18)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 4;
-        ctx.fillStyle = '#ffffff';
-        ctx.fill(stampPath);
-        ctx.restore();
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff';
+    ctx.fill(stampPath);
+    ctx.restore();
 
-        ctx.save();
-        ctx.clip(stampPath);
-        if (item.img) {
-            ctx.drawImage(item.img, rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
+    ctx.save();
+    ctx.clip(stampPath);
+    if (item.img) {
+        // 1. 绘制地图
+        ctx.drawImage(item.img, rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
 
-        } else {
-            ctx.fillStyle = '#e8e0d6';
-            ctx.fillRect(rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
-            ctx.fillStyle = '#999';
-            ctx.font = '14px "Noto Sans SC", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(item.label, rx + rw / 2, ry + rh / 2);
-        }
-        ctx.restore();
+        // 2. 绘制水滴标记（地图中心）
+        const markerSize = Math.min(rw, rh) * 0.10;
+        const color = item.label === '📍 原始位置' ? '#e8923a' : '#2898e8';
+        drawTeardropOnCanvas(ctx, rx + rw / 2, ry + rh / 2, color, markerSize);
+    } else {
+        ctx.fillStyle = '#e8e0d6';
+        ctx.fillRect(rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
+        ctx.fillStyle = '#999';
+        ctx.font = '14px "Noto Sans SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.label, rx + rw / 2, ry + rh / 2);
+    }
+    ctx.restore();
 
-        ctx.save();
-        ctx.strokeStyle = 'rgba(160, 150, 140, 0.35)';
-        ctx.lineWidth = 1;
-        ctx.stroke(stampPath);
-        ctx.restore();
-    });
+    ctx.save();
+    ctx.strokeStyle = 'rgba(160, 150, 140, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke(stampPath);
+    ctx.restore();
+});
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
         const stampImg = await loadImage('/images/stamp.png');
@@ -1700,7 +1863,7 @@ if (productImg) {
 } else {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(imgX, imgY, imgSize, imgSize, 12);
+    roundRect(ctx, imgX, imgY, imgSize, imgSize, 12);
     ctx.fillStyle = 'rgba(26,42,74,0.05)';
     ctx.fill();
     ctx.fillStyle = 'rgba(26,42,74,0.15)';
