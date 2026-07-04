@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "init": "node init-db.js",
-   "build:js": "terser public/js/main.js --compress --mangle --reserved-names 'editCity,deleteCity,openCityModal,closeCityModal,refreshCities,filterCities,saveCity,uploadImage,openGiftModal,closeGiftModal,refreshGifts,saveGift,deleteGift,uploadGiftImage,loadStats,loadImages,exportData,generateShareCard,drawTeardropOnCanvas,loadImage,roundRect,wrapText,formatCoord,calculateAntipode,detectBrand,triggerGiftForLocation,getAntipodeRegion,showGift' --output public/js/main.min.js"
+   "build:js": "terser public/js/main.js --compress passes=1 --mangle --reserved-names 'editCity,deleteCity,openCityModal,closeCityModal,refreshCities,filterCities,saveCity,uploadImage,openGiftModal,closeGiftModal,refreshGifts,saveGift,deleteGift,uploadGiftImage,loadStats,loadImages,exportData,generateShareCard,drawTeardropOnCanvas,loadImage,roundRect,wrapText,formatCoord,calculateAntipode,detectBrand,triggerGiftForLocation,getAntipodeRegion,showGift' --output public/js/main.min.js --ascii-only false"
+
   },
   "dependencies": {
     "canvas": "^3.2.3",
