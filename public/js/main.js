@@ -1558,10 +1558,11 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
     if (city.antipode_image) antipodeImg = await loadImage(city.antipode_image);
 
         if (!originImg && city.lat && city.lng) {
-        const size = Math.round(imgWidth);
-        const ts = Date.now();
-        originImg = await loadImage(`/api/static-map?lng=${city.lng}&lat=${city.lat}&size=${size}&zoom=3&color=0xE8923A&t=${ts}`);
-    }
+    const size = Math.round(imgWidth);
+    const tdtToken = '7da0bbd486e5a061e5329472bed5ba41'; // 浏览器端 Key（公开）
+    const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
+    originImg = await loadImage(url);
+}
 
     let antiLat = city.antipode_lat;
     let antiLng = city.antipode_lng;
@@ -1571,10 +1572,11 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
         antiLng = anti.lng;
     }
         if (!antipodeImg && antiLat && antiLng) {
-        const size = Math.round(imgWidth);
-        const ts = Date.now();
-        antipodeImg = await loadImage(`/api/static-map?lng=${antiLng}&lat=${antiLat}&size=${size}&zoom=3&color=0x2898E8&t=${ts}`);
-    }
+    const size = Math.round(imgWidth);
+    const tdtToken = '7da0bbd486e5a061e5329472bed5ba41';
+    const url = `https://api.tianditu.gov.cn/staticimage?center=${antiLng},${antiLat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
+    antipodeImg = await loadImage(url);
+}
 
          // ---- 3b. 地图标签 + 经纬度 ----
     const originCoordText = formatCoord(city.lat, city.lng);
