@@ -23,6 +23,11 @@ app.use(express.json());
 // ===== 管理后台密码保护 =====
 // 从环境变量读取密码，若未设置则使用默认值（请务必在 Render 中设置）
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'your-secure-password-here';
+// ===== 新增日志，查看实际读取到的密码 =====
+console.log('🔐 ADMIN_PASSWORD 是否存在:', !!process.env.ADMIN_PASSWORD);
+console.log('🔐 ADMIN_PASSWORD 长度:', ADMIN_PASSWORD.length);
+console.log('🔐 ADMIN_PASSWORD 前2位:', ADMIN_PASSWORD.substring(0, 2));
+console.log('🔐 ADMIN_PASSWORD 后2位:', ADMIN_PASSWORD.substring(ADMIN_PASSWORD.length - 2));
 
 // 保护 admin.html 页面（使用 app.use 确保优先级）
 app.use('/admin.html', (req, res, next) => {
