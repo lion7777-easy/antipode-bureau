@@ -20,6 +20,47 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use(cors());
 app.use(express.json());
+// ===== 管理后台密码保护 =====
+// 从环境变量读取密码，若未设置则使用默认值（请务必在 Render 中设置）
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'your-secure-password-here';
+
+// 1. 保护 admin.html 页面（单独路由，优先于静态文件）
+app.get('/admin.html', (req, res, next) => {
+    const auth = req.headers.authorization;
+    if (!auth) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).send('需要登录');
+    }
+    const base64 = auth.split(' ')[1];
+    const [username, password] = Buffer.from(base64, 'base64').toString().split(':');
+    if (password === ADMIN_PASSWORD) {
+        // 认证通过，返回 admin.html 文件
+        res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    } else {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        res.status(401).send('密码错误');
+    }
+});
+
+// 2. 保护所有 /api/admin/* 接口
+app.use('/api/admin', (req, res, next) => {
+    const auth = req.headers.authorization;
+    if (!auth) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).json({ error: '需要登录' });
+    }
+    const base64 = auth.split(' ')[1];
+    const [username, password] = Buffer.from(base64, 'base64').toString().split(':');
+    if (password === ADMIN_PASSWORD) {
+        next(); // 验证通过，继续处理请求
+    } else {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        res.status(401).json({ error: '密码错误' });
+    }
+});
+
+// 然后才是静态文件服务（注意：admin.html 已被上面的路由接管）
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const storage = multer.diskStorage({
