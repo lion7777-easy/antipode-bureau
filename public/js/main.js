@@ -2659,60 +2659,63 @@ const DEFAULT_POEM_CN = '「这一刻，你与地球背面，同频呼吸。」'
 const DEFAULT_POEM_EN = 'In this moment, you breathe in sync with the far side of the earth.';
 
                 // ===== 初始化 =====
-       document.addEventListener('DOMContentLoaded', function() {
-            applyBranding();
-            fixQQBrowser();  // 新增这一行，放在applyBranding之后
-            document.getElementById('searchBtn').onclick = function() {
-                searchLocation(document.getElementById('searchInput').value.trim());
-            };
-            document.getElementById('locationBtn').onclick = getMyLocation;
-            document.getElementById('randomBtn').onclick = randomTravel;
-            document.getElementById('rankingBtn').onclick = loadRanking;
-            document.getElementById('searchInput').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    var keyword = this.value.trim();
-                    if (keyword) searchLocation(keyword);
-                }
-            });
-            updateHistoryList();
-
-           // ===== 太阳/月亮切换（Cesium 版本） =====
-const dayNightToggle = document.getElementById('dayNightToggle');
-const sunIcon = document.getElementById('sunIcon');
-const moonIcon = document.getElementById('moonIcon');
-
-if (dayNightToggle) {
-    dayNightToggle.addEventListener('click', function() {
-        // 判断当前状态：太阳可见 → 切换到夜间
-        const isNight = sunIcon.style.display !== 'none';
-        const newMode = isNight; // true = 夜间, false = 日间
-        
-        // 切换图标
-        sunIcon.style.display = isNight ? 'none' : 'block';
-        moonIcon.style.display = isNight ? 'block' : 'none';
-        this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
-
-        // 调用 Cesium 的日夜切换
-        if (window.__toggleCesiumDayNight) {
-            // 注意：window.__cesiumViewer 必须已存在
-            window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
-            console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
-        } else {
-            console.warn('Cesium 未就绪，无法切换日夜');
+       // ===== 初始化应用（不再依赖 DOMContentLoaded） =====
+function initApp() {
+    applyBranding();
+    fixQQBrowser();
+    document.getElementById('searchBtn').onclick = function() {
+        searchLocation(document.getElementById('searchInput').value.trim());
+    };
+    document.getElementById('locationBtn').onclick = getMyLocation;
+    document.getElementById('randomBtn').onclick = randomTravel;
+    document.getElementById('rankingBtn').onclick = loadRanking;
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var keyword = this.value.trim();
+            if (keyword) searchLocation(keyword);
         }
     });
-}
-            // 高德地图加载
-            window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY };
-            var script = document.createElement('script');
-            script.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_KEY;
-            script.async = true;
-script.referrerPolicy = 'no-referrer';  // 新增这一行
-            script.onload = initMaps;
-            script.onerror = function() { alert('高德地图加载失败，请检查网络'); };
-            document.head.appendChild(script);
+    updateHistoryList();
+
+    // ===== 太阳/月亮切换（Cesium 版本） =====
+    const dayNightToggle = document.getElementById('dayNightToggle');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+
+    if (dayNightToggle) {
+        dayNightToggle.addEventListener('click', function() {
+            const isNight = sunIcon.style.display !== 'none';
+            const newMode = isNight;
+            sunIcon.style.display = isNight ? 'none' : 'block';
+            moonIcon.style.display = isNight ? 'block' : 'none';
+            this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
+            if (window.__toggleCesiumDayNight) {
+                window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
+                console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
+            } else {
+                console.warn('Cesium 未就绪，无法切换日夜');
+            }
         });
+    }
+
+    // 高德地图加载
+    window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY };
+    var script = document.createElement('script');
+    script.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_KEY;
+    script.async = true;
+    script.referrerPolicy = 'no-referrer';
+    script.onload = initMaps;
+    script.onerror = function() { alert('高德地图加载失败，请检查网络'); };
+    document.head.appendChild(script);
+}
+
+// 如果 DOM 还未加载完成，等待；否则直接执行
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'globe-ready') {
