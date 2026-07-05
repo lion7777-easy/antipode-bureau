@@ -1514,21 +1514,19 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
     }
 
     // 2. 判断模式：左侧（原点）或右侧（对跖点）
-    const isOriginMode = (originCoord && originCoord.lat !== undefined && originCoord.lng !== undefined) &&
-                         (!antipodeCoord || antipodeCoord.lat === undefined);
+    const isOriginMode = (originCoord && typeof originCoord.lat === 'number' && typeof originCoord.lng === 'number') &&
+                         (!antipodeCoord || typeof antipodeCoord.lat !== 'number');
 
-    // 3. 配色方案
+    // 3. 配色方案（镜像：左侧陆地深、海洋浅；右侧陆地浅、海洋深）
     let landColor, seaColor, lineColor;
     if (isOriginMode) {
-        // 左侧：陆地深色，海洋浅色（羊皮纸）
         landColor = '#5a4a3a';      // 深棕色陆地
-        seaColor = '#f5f0e6';       // 浅色羊皮纸海洋
+        seaColor = '#f5f0e6';       // 浅羊皮纸海洋
         lineColor = '#8a7a5a';      // 描边色
     } else {
-        // 右侧：陆地浅色，海洋深色
         landColor = '#f5f0e6';      // 浅色陆地
-        seaColor = '#3a2a1a';       // 深色海洋
-        lineColor = '#c0b0a0';      // 描边色（浅一些）
+        seaColor = '#5a4a3a';       // 深棕色海洋（镜像）
+        lineColor = '#c0b0a0';      // 描边色
     }
 
     // 4. 计算绘制区域（保持地图比例）
@@ -1551,24 +1549,23 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
         offsetY = (containerHeight - mapHeight) / 2;
     }
 
-    // 5. 投影函数
+    // 5. 投影函数（使用计算后的 mapWidth/mapHeight/offsetX/offsetY）
     function project(lat, lng) {
         const px = (lng + 180) / 360 * mapWidth + offsetX;
         const py = (90 - lat) / 180 * mapHeight + offsetY;
         return { x: x + padding + px, y: y + padding + py };
     }
 
-    // 6. 绘制背景（海洋颜色）
+    // 6. 绘制海洋背景
     ctx.save();
     ctx.fillStyle = seaColor;
     ctx.fillRect(x + padding, y + padding, containerWidth, containerHeight);
     ctx.restore();
 
-    // 7. 绘制大陆填充和描边
+    // 7. 绘制大陆（填充+描边）
     ctx.save();
     ctx.beginPath();
     const features = worldMapData.features;
-    let hasPath = false;
     features.forEach(feature => {
         const geometry = feature.geometry;
         if (!geometry) return;
@@ -1599,17 +1596,16 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
     ctx.stroke();
     ctx.restore();
 
-    // 8. 绘制标记点（根据模式只绘制对应的点）
+    // 8. 绘制标记点（只绘制对应的点）
     const points = [];
     if (isOriginMode && originCoord) {
         points.push({ coord: originCoord, color: '#e8923a' });
     } else if (!isOriginMode && antipodeCoord) {
         points.push({ coord: antipodeCoord, color: '#2898e8' });
     }
-    // 如果有两个点都传了（保留兼容），但我们的调用只会传一个，所以上面逻辑足够
 
     points.forEach(({ coord, color }) => {
-        if (!coord || coord.lat === undefined || coord.lng === undefined) return;
+        if (!coord || typeof coord.lat !== 'number' || typeof coord.lng !== 'number') return;
         const pos = project(coord.lat, coord.lng);
         const dotX = pos.x;
         const dotY = pos.y;
@@ -1637,6 +1633,7 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
         ctx.restore();
     });
 }
+
 async function generateShareCard(city) {
     if (!city) {
         alert('请先搜索一个城市');
