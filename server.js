@@ -406,19 +406,25 @@ app.get('/api/gifts/by-type', (req, res) => {
 // ===== OSM 静态图代理（用于分享卡地图） =====
 app.get('/api/osm-staticmap', async (req, res) => {
     const { lat, lng, size = '270', zoom = '8' } = req.query;
-    console.log('📥 OSM 代理请求参数:', { lat, lng, size, zoom });
-
+    
+    // 参数校验
     if (!lat || !lng) {
         return res.status(400).json({ error: '缺少经纬度参数' });
     }
 
-    // 使用 OSM 法国镜像
-    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${size}x${size}&maptype=mapnik`;
-    console.log('🌐 OSM 请求 URL:', url);
+    // 美国镜像（更稳定，延迟低）
+    const url = `https://staticmap.openstreetmap.us/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${size}x${size}&maptype=mapnik`;
+    console.log('🌐 OSM 请求 URL (美国镜像):', url);
 
     try {
-        // 使用 Node.js 原生 fetch（需要 Node 18+）
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                // OSM 官方要求必须携带可识别的 User-Agent
+                'User-Agent': 'AntipodeBureau/1.0 (https://duizhidian.com; contact@duizhidian.com)'
+            },
+            // 增加超时控制（10秒）
+            signal: AbortSignal.timeout(10000)
+        });
 
         if (!response.ok) {
             console.error(`❌ OSM 返回错误状态: ${response.status} ${response.statusText}`);
@@ -429,13 +435,11 @@ app.get('/api/osm-staticmap', async (req, res) => {
             });
         }
 
-        // 获取图片数据
         const buffer = await response.arrayBuffer();
         res.setHeader('Content-Type', 'image/png');
         res.send(Buffer.from(buffer));
     } catch (err) {
         console.error('❌ OSM 代理请求失败:', err.message);
-        // 返回详细错误信息给前端
         res.status(500).json({
             error: '地图服务请求失败',
             details: err.message,
