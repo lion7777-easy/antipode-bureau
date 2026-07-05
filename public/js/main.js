@@ -1485,8 +1485,8 @@ function getThemeBg(city) {
     const index = Math.floor(Math.random() * bgList.length);
     return bgList[index];
 }
-// ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图） =====
 // ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图，支持双色模式） =====
+let worldMapData = null;
 async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) {
     // 1. 加载 GeoJSON 数据（使用缓存）
     if (!worldMapData) {
