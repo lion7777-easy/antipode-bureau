@@ -1616,7 +1616,7 @@ if (!originImg && city.lat && city.lng) {
     // 2. 缓存未命中或加载失败 → 直接请求天地图
     if (!originImg) {
         const tdtToken = '7da0bbd486e5a061e5329472bed5ba41'; // 浏览器端 Key
-        const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
+        const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=8&width=${size}&height=${size}&tk=${tdtToken}`;
         originImg = await loadImageWithCache(url, cacheKey);
     }
 }
@@ -1641,7 +1641,7 @@ if (!antipodeImg && antiLat && antiLng) {
     }
     
     if (!antipodeImg) {
-        const url = `https://api.tianditu.gov.cn/staticimage?center=${antiLng},${antiLat}&zoom=3&width=${size}&height=${size}&layer=img&tk=7da0bbd486e5a061e5329472bed5ba41`;
+    const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=8&width=${size}&height=${size}&tk=${tdtToken}`;
         antipodeImg = await loadImageWithCache(url, cacheKey);
     }
 }
