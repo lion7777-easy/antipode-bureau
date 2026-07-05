@@ -1601,7 +1601,7 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
       // ===== 修改后（前端直连 + 缓存） =====
 if (!originImg && city.lat && city.lng) {
     const size = Math.round(imgWidth);
-    const cacheKey = `staticmap_osm_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
+   const cacheKey = `staticmap_proxy_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {
@@ -1610,9 +1610,8 @@ if (!originImg && city.lat && city.lng) {
             console.warn('缓存图片加载失败，重新请求');
         }
     }
-  if (!originImg) {
-    // OSM 静态图（使用法国镜像，更稳定）
-    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${city.lat},${city.lng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
+ if (!originImg) {
+    const url = `/api/osm-staticmap?lat=${city.lat}&lng=${city.lng}&size=${size}&zoom=8`;
     originImg = await loadImageWithCache(url, cacheKey);
 }
 }
@@ -1636,7 +1635,7 @@ if (!antipodeImg && antiLat && antiLng) {
         } catch (e) {}
     }
     if (!antipodeImg) {
-    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${antiLat},${antiLng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
+    const url = `/api/osm-staticmap?lat=${antiLat}&lng=${antiLng}&size=${size}&zoom=8`;
     antipodeImg = await loadImageWithCache(url, cacheKey);
 }
 }

@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-const https = require('https');  
+
 
 const app = express();
 const PORT = 3000;
@@ -263,23 +263,7 @@ const AMAP_KEY = 'd6846dea147b497922afd3f9b121b429';
         return res.status(500).json({ success: false, error: error.message });
     }
 });
-app.get('/api/static-map', async (req, res) => {
-    const { lng, lat, size = '270', zoom = '3' } = req.query;
-    if (!lng || !lat) {
-        return res.status(400).json({ error: '缺少经纬度参数' });
-    }
-    const tk = '76b0999164f9285ceb1ff3a6ce53b5cd';  // 统一 Token
-    const url = `https://api.tianditu.gov.cn/staticimage?center=${lng},${lat}&zoom=${zoom}&width=${size}&height=${size}&layer=img&tk=${tk}`;
-    
-    const https = require('https');
-    https.get(url, (tdtRes) => {
-        res.setHeader('Content-Type', tdtRes.headers['content-type'] || 'image/png');
-        tdtRes.pipe(res);
-    }).on('error', (err) => {
-        console.error('静态地图代理失败:', err.message);
-        res.status(500).end();
-    });
-});
+
 // ===== 逆地理编码代理接口（天地图 + 双重兜底） =====
 app.get('/api/reverse-geocode', (req, res) => {
     const { lng, lat } = req.query;
@@ -418,6 +402,37 @@ app.get('/api/gifts/by-type', (req, res) => {
         if (err) res.status(500).json({ error: err.message });
         else res.json(rows);
     });
+});
+// ===== OSM 静态图代理（用于分享卡地图） =====
+app.get('/api/osm-staticmap', (req, res) => {
+    const { lat, lng, size = '270', zoom = '8' } = req.query;
+    if (!lat || !lng) {
+        return res.status(400).json({ error: '缺少经纬度参数' });
+    }
+
+    // 使用 OSM 法国镜像（稳定且支持全球数据）
+    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${size}x${size}&maptype=mapnik`;
+
+    const https = require('https');
+    const request = https.get(url, (response) => {
+        // 检查响应状态码
+        if (response.statusCode !== 200) {
+            console.error(`OSM 代理返回非200状态码: ${response.statusCode}`);
+            res.status(response.statusCode).end();
+            return;
+        }
+        // 设置正确的 Content-Type
+        res.setHeader('Content-Type', response.headers['content-type'] || 'image/png');
+        // 将 OSM 响应数据流直接转发给前端
+        response.pipe(res);
+    });
+
+    request.on('error', (err) => {
+        console.error('OSM 代理请求失败:', err.message);
+        res.status(500).json({ error: '地图服务请求失败' });
+    });
+
+    request.end();
 });
 // ===== 管理后台 API =====
 app.post('/api/admin/cities', (req, res) => {

@@ -1545,7 +1545,15 @@ body.is-mobile .share-modal { padding: 12px; }
         <div class="hint">点击任意处关闭</div>
     </div>
 
-<script src="js/main.min.js"></script>
+<script>
+(function() {
+    const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    const script = document.createElement('script');
+    script.src = isMobile ? 'js/main.js' : 'js/main.min.js';
+    script.async = false;
+    document.head.appendChild(script);
+})();
+</script>
 
 
 </body>
