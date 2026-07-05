@@ -1601,9 +1601,7 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
       // ===== 修改后（前端直连 + 缓存） =====
 if (!originImg && city.lat && city.lng) {
     const size = Math.round(imgWidth);
-    const cacheKey = `staticmap_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
-    
-    // 1. 先检查 localStorage 缓存
+    const cacheKey = `staticmap_osm_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {
@@ -1612,11 +1610,9 @@ if (!originImg && city.lat && city.lng) {
             console.warn('缓存图片加载失败，重新请求');
         }
     }
-    
-    // 2. 缓存未命中或加载失败 → 直接请求天地图
     if (!originImg) {
-        const tdtToken = '7da0bbd486e5a061e5329472bed5ba41'; // 浏览器端 Key
-        const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=8&width=${size}&height=${size}&tk=${tdtToken}`;
+        // OSM 静态图（纬度在前，经度在后）
+        const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${city.lat},${city.lng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
         originImg = await loadImageWithCache(url, cacheKey);
     }
 }
@@ -1628,20 +1624,19 @@ if (!antiLat || !antiLng) {
     const anti = calculateAntipode(city.lat, city.lng);
     antiLat = anti.lat;
     antiLng = anti.lng;
-}
+} // ← 这里必须闭合 if (!antiLat || !antiLng)
+
 if (!antipodeImg && antiLat && antiLng) {
     const size = Math.round(imgWidth);
-    const cacheKey = `staticmap_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
-    
+    const cacheKey = `staticmap_osm_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {
             antipodeImg = await loadImage(cached);
         } catch (e) {}
     }
-    
     if (!antipodeImg) {
-    const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=8&width=${size}&height=${size}&tk=${tdtToken}`;
+        const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${antiLat},${antiLng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
         antipodeImg = await loadImageWithCache(url, cacheKey);
     }
 }
