@@ -1486,8 +1486,7 @@ function getThemeBg(city) {
     return bgList[index];
 }
 // ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图） =====
-let worldMapData = null;
-
+// ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图，支持双色模式） =====
 async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) {
     // 1. 加载 GeoJSON 数据（使用缓存）
     if (!worldMapData) {
@@ -1496,42 +1495,80 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
             if (!response.ok) throw new Error('HTTP ' + response.status);
             worldMapData = await response.json();
         } catch (e) {
-    console.error('加载世界地图数据失败:', e);
-    // 绘制简单占位图
-    ctx.save();
-    ctx.fillStyle = '#1a2a4a';
-    ctx.fillRect(x, y, size, size);
-    ctx.fillStyle = '#e8923a';
-    ctx.font = 'bold 18px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('✦ 对跖点漫游局', x + size/2, y + size/2 - 8);
-    ctx.fillStyle = 'rgba(245, 240, 232, 0.7)';
-    ctx.font = '14px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText('探索地球另一端', x + size/2, y + size/2 + 22);
-    ctx.restore();
-    return;
-}
+            console.error('加载世界地图数据失败:', e);
+            // 绘制简单占位图
+            ctx.save();
+            ctx.fillStyle = '#1a2a4a';
+            ctx.fillRect(x, y, size, size);
+            ctx.fillStyle = '#e8923a';
+            ctx.font = 'bold 18px "Noto Serif SC", "Noto Sans SC", serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('✦ 对跖点漫游局', x + size/2, y + size/2 - 8);
+            ctx.fillStyle = 'rgba(245, 240, 232, 0.7)';
+            ctx.font = '14px "Noto Serif SC", "Noto Sans SC", serif';
+            ctx.fillText('探索地球另一端', x + size/2, y + size/2 + 22);
+            ctx.restore();
+            return;
+        }
     }
 
-    // 2. 等距矩形投影（经纬度 → 画布坐标）
-    function project(lat, lng, width, height) {
-        const x = (lng + 180) / 360 * width;
-        const y = (90 - lat) / 180 * height;
-        return { x, y };
+    // 2. 判断模式：左侧（原点）或右侧（对跖点）
+    const isOriginMode = (originCoord && originCoord.lat !== undefined && originCoord.lng !== undefined) &&
+                         (!antipodeCoord || antipodeCoord.lat === undefined);
+
+    // 3. 配色方案
+    let landColor, seaColor, lineColor;
+    if (isOriginMode) {
+        // 左侧：陆地深色，海洋浅色（羊皮纸）
+        landColor = '#5a4a3a';      // 深棕色陆地
+        seaColor = '#f5f0e6';       // 浅色羊皮纸海洋
+        lineColor = '#8a7a5a';      // 描边色
+    } else {
+        // 右侧：陆地浅色，海洋深色
+        landColor = '#f5f0e6';      // 浅色陆地
+        seaColor = '#3a2a1a';       // 深色海洋
+        lineColor = '#c0b0a0';      // 描边色（浅一些）
     }
 
-    // 3. 绘制
+    // 4. 计算绘制区域（保持地图比例）
     const padding = size * 0.08;
-    const mapWidth = size - padding * 2;
-    const mapHeight = size - padding * 2;
-    const centerX = x + size / 2;
-    const centerY = y + size / 2;
+    const containerWidth = size - padding * 2;
+    const containerHeight = size - padding * 2;
+    const mapAspect = 2; // 世界地图宽高比 2:1
+    let mapWidth, mapHeight, offsetX, offsetY;
 
-    // 绘制大陆轮廓
+    const containerAspect = containerWidth / containerHeight;
+    if (containerAspect > mapAspect) {
+        mapHeight = containerHeight;
+        mapWidth = mapHeight * mapAspect;
+        offsetX = (containerWidth - mapWidth) / 2;
+        offsetY = 0;
+    } else {
+        mapWidth = containerWidth;
+        mapHeight = mapWidth / mapAspect;
+        offsetX = 0;
+        offsetY = (containerHeight - mapHeight) / 2;
+    }
+
+    // 5. 投影函数
+    function project(lat, lng) {
+        const px = (lng + 180) / 360 * mapWidth + offsetX;
+        const py = (90 - lat) / 180 * mapHeight + offsetY;
+        return { x: x + padding + px, y: y + padding + py };
+    }
+
+    // 6. 绘制背景（海洋颜色）
+    ctx.save();
+    ctx.fillStyle = seaColor;
+    ctx.fillRect(x + padding, y + padding, containerWidth, containerHeight);
+    ctx.restore();
+
+    // 7. 绘制大陆填充和描边
     ctx.save();
     ctx.beginPath();
     const features = worldMapData.features;
+    let hasPath = false;
     features.forEach(feature => {
         const geometry = feature.geometry;
         if (!geometry) return;
@@ -1544,30 +1581,38 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
             polygon.forEach(ring => {
                 ring.forEach((coord, index) => {
                     const [lng, lat] = coord;
-                    const pos = project(lat, lng, mapWidth, mapHeight);
-                    const drawX = x + padding + pos.x;
-                    const drawY = y + padding + pos.y;
-                    if (index === 0) ctx.moveTo(drawX, drawY);
-                    else ctx.lineTo(drawX, drawY);
+                    const pos = project(lat, lng);
+                    if (index === 0) {
+                        ctx.moveTo(pos.x, pos.y);
+                    } else {
+                        ctx.lineTo(pos.x, pos.y);
+                    }
                 });
             });
         });
     });
-    ctx.strokeStyle = '#8a7a5a';
+    ctx.closePath();
+    ctx.fillStyle = landColor;
+    ctx.fill();
+    ctx.strokeStyle = lineColor;
     ctx.lineWidth = 1.2;
     ctx.stroke();
     ctx.restore();
 
-    // 绘制标记点（原始位置和对跖点）
-    const points = [
-        { coord: originCoord, color: '#e8923a', label: '原点' },
-        { coord: antipodeCoord, color: '#2898e8', label: '对跖点' }
-    ];
+    // 8. 绘制标记点（根据模式只绘制对应的点）
+    const points = [];
+    if (isOriginMode && originCoord) {
+        points.push({ coord: originCoord, color: '#e8923a' });
+    } else if (!isOriginMode && antipodeCoord) {
+        points.push({ coord: antipodeCoord, color: '#2898e8' });
+    }
+    // 如果有两个点都传了（保留兼容），但我们的调用只会传一个，所以上面逻辑足够
+
     points.forEach(({ coord, color }) => {
         if (!coord || coord.lat === undefined || coord.lng === undefined) return;
-        const pos = project(coord.lat, coord.lng, mapWidth, mapHeight);
-        const dotX = x + padding + pos.x;
-        const dotY = y + padding + pos.y;
+        const pos = project(coord.lat, coord.lng);
+        const dotX = pos.x;
+        const dotY = pos.y;
 
         // 光晕
         ctx.save();
@@ -1591,28 +1636,6 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord) 
         ctx.shadowBlur = 0;
         ctx.restore();
     });
-
-    // 弧线连接两点
-    if (originCoord && antipodeCoord && originCoord.lat !== undefined && antipodeCoord.lat !== undefined) {
-        ctx.save();
-        const start = project(originCoord.lat, originCoord.lng, mapWidth, mapHeight);
-        const end = project(antipodeCoord.lat, antipodeCoord.lng, mapWidth, mapHeight);
-        const startX = x + padding + start.x;
-        const startY = y + padding + start.y;
-        const endX = x + padding + end.x;
-        const endY = y + padding + end.y;
-        const midX = (startX + endX) / 2;
-        const midY = (startY + endY) / 2 - 30;
-
-        ctx.setLineDash([3, 5]);
-        ctx.strokeStyle = 'rgba(232, 146, 58, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.quadraticCurveTo(midX, midY, endX, endY);
-        ctx.stroke();
-        ctx.restore();
-    }
 }
 async function generateShareCard(city) {
     if (!city) {
@@ -1862,7 +1885,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord) {
     ctx.shadowBlur = 12;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 4;
-    ctx.fillStyle = '#f5f0e6';   // 米白色羊皮纸背景
+ctx.fillStyle = '#e8dcc8';   // 复古羊皮纸色
 drawStampPath(ctx, rx, ry, rw, rh);
 ctx.fill();
     ctx.restore();
@@ -1884,12 +1907,14 @@ ctx.fill();
 }
 
 // 绘制两张邮票
+// 左侧邮票：只显示原始位置（橙色）
 await drawStampWithMap(ctx, x1, y, imgWidth,
     { lat: city.lat, lng: city.lng },
-    { lat: antiLat, lng: antiLng }
+    null   // 不传对跖点
 );
+// 右侧邮票：只显示对跖点（蓝色）
 await drawStampWithMap(ctx, x2, y, imgWidth,
-    { lat: city.lat, lng: city.lng },
+    null,  // 不传原始位置
     { lat: antiLat, lng: antiLng }
 );
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
