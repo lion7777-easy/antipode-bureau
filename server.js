@@ -406,21 +406,33 @@ app.get('/api/gifts/by-type', (req, res) => {
 // ===== OSM 静态图代理（用于分享卡地图） =====
 app.get('/api/osm-staticmap', (req, res) => {
     const { lat, lng, size = '270', zoom = '8' } = req.query;
+    
+    // 打印请求参数，便于调试
+    console.log('📥 OSM 代理请求参数:', { lat, lng, size, zoom });
+
     if (!lat || !lng) {
+        console.error('❌ 缺少经纬度参数');
         return res.status(400).json({ error: '缺少经纬度参数' });
     }
 
-    // 使用 OSM 法国镜像（稳定且支持全球数据）
+    // 构造 OSM URL（使用法国镜像）
     const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${size}x${size}&maptype=mapnik`;
+    console.log('🌐 OSM 请求 URL:', url);
 
     const https = require('https');
     const request = https.get(url, (response) => {
-        // 检查响应状态码
+        console.log(`📊 OSM 响应状态码: ${response.statusCode}`);
+        
         if (response.statusCode !== 200) {
-            console.error(`OSM 代理返回非200状态码: ${response.statusCode}`);
-            res.status(response.statusCode).end();
+            console.error(`❌ OSM 返回非200: ${response.statusCode}`);
+            // 返回具体状态码和错误信息
+            res.status(response.statusCode).json({ 
+                error: `OSM 服务返回错误 ${response.statusCode}`,
+                details: response.statusMessage || '未知错误'
+            });
             return;
         }
+
         // 设置正确的 Content-Type
         res.setHeader('Content-Type', response.headers['content-type'] || 'image/png');
         // 将 OSM 响应数据流直接转发给前端
@@ -428,8 +440,20 @@ app.get('/api/osm-staticmap', (req, res) => {
     });
 
     request.on('error', (err) => {
-        console.error('OSM 代理请求失败:', err.message);
-        res.status(500).json({ error: '地图服务请求失败' });
+        console.error('❌ OSM 代理请求失败:', err.message);
+        // 返回详细的错误信息（方便前端查看）
+        res.status(500).json({ 
+            error: '地图服务请求失败', 
+            details: err.message,
+            code: err.code || 'UNKNOWN'
+        });
+    });
+
+    // 设置请求超时（10秒）
+    request.setTimeout(10000, () => {
+        console.error('⏱️ OSM 请求超时');
+        request.abort();
+        res.status(504).json({ error: '地图服务响应超时' });
     });
 
     request.end();
