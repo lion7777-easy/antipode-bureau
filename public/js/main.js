@@ -1951,13 +1951,13 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
     ctx.restore();
 
-    // 齿口描边
-    ctx.save();
-    drawStampPath(ctx, rx, ry, rw, rh);
-    ctx.strokeStyle = 'rgba(160, 150, 140, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.restore();
+    // 齿口描边（白色锯齿边，更像邮票）
+ctx.save();
+drawStampPath(ctx, rx, ry, rw, rh);
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 1.5;          // 稍微加粗一点，让白色更明显
+ctx.stroke();
+ctx.restore();
 }
 
 // 绘制两张邮票
@@ -2849,7 +2849,13 @@ function initApp() {
         }
     });
     updateHistoryList();
-
+// ===== 预加载 GeoJSON 地图数据（提升分享卡生成速度） =====
+    if (!worldMapData) {
+        fetch('/data/land-110m.geojson')
+            .then(res => res.json())
+            .then(data => { worldMapData = data; })
+            .catch(() => { console.warn('预加载 GeoJSON 失败，分享卡生成时会重试'); });
+    }
     // ===== 太阳/月亮切换（Cesium 版本） =====
     const dayNightToggle = document.getElementById('dayNightToggle');
     const sunIcon = document.getElementById('sunIcon');
