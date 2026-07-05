@@ -864,43 +864,7 @@ triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
 }
 
 
-javascript
-if (tianDiTuResult) {
-    console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
-    let antipodeName = '地球另一端';
-    let antipodeNameEn = '';
-    try {
-        const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
-        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const geoData = await geoRes.json();
-        if (geoData.success && geoData.name) {
-            antipodeName = geoData.name;
-            antipodeNameEn = geoData.nameEn || '';
-        }
-    } catch (e) {
-        console.warn('获取对跖点名称失败:', e);
-    }
-    const tempCityData = {
-        lat: amapResult.lat,   // ← 这里错误使用了 amapResult，应该用 tianDiTuResult
-        lng: amapResult.lng,
-        name_cn: searchKeyword,
-        name_en: nameEn,       // ← nameEn 未定义
-        antipode_name: antipodeName,
-        antipode_name_en: antipodeNameEn,
-        poem: '「这一刻，你与地球背面，同频呼吸。」',
-        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
-        origin_image: '',
-        antipode_image: ''
-    };
-    currentCityData = tempCityData;
-    await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
-                isSearching = false;
-                document.getElementById('searchBtn').disabled = false;
-                showLoading(false);
-                return;
-            }
+
         } catch (e) {
             console.log('⚠️ 高德失败，降级到天地图');
         }
@@ -1634,25 +1598,52 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
     if (city.origin_image) originImg = await loadImage(city.origin_image);
     if (city.antipode_image) antipodeImg = await loadImage(city.antipode_image);
 
-        if (!originImg && city.lat && city.lng) {
+      // ===== 修改后（前端直连 + 缓存） =====
+if (!originImg && city.lat && city.lng) {
     const size = Math.round(imgWidth);
-    const tdtToken = '7da0bbd486e5a061e5329472bed5ba41'; // 浏览器端 Key（公开）
-    const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
-    originImg = await loadImage(url);
+    const cacheKey = `staticmap_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
+    
+    // 1. 先检查 localStorage 缓存
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            originImg = await loadImage(cached);
+        } catch (e) {
+            console.warn('缓存图片加载失败，重新请求');
+        }
+    }
+    
+    // 2. 缓存未命中或加载失败 → 直接请求天地图
+    if (!originImg) {
+        const tdtToken = '7da0bbd486e5a061e5329472bed5ba41'; // 浏览器端 Key
+        const url = `https://api.tianditu.gov.cn/staticimage?center=${city.lng},${city.lat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
+        originImg = await loadImageWithCache(url, cacheKey);
+    }
 }
 
-    let antiLat = city.antipode_lat;
-    let antiLng = city.antipode_lng;
-    if (!antiLat || !antiLng) {
-        const anti = calculateAntipode(city.lat, city.lng);
-        antiLat = anti.lat;
-        antiLng = anti.lng;
-    }
-        if (!antipodeImg && antiLat && antiLng) {
+// 对跖点坐标计算（独立于上面的 if）
+let antiLat = city.antipode_lat;
+let antiLng = city.antipode_lng;
+if (!antiLat || !antiLng) {
+    const anti = calculateAntipode(city.lat, city.lng);
+    antiLat = anti.lat;
+    antiLng = anti.lng;
+}
+if (!antipodeImg && antiLat && antiLng) {
     const size = Math.round(imgWidth);
-    const tdtToken = '7da0bbd486e5a061e5329472bed5ba41';
-    const url = `https://api.tianditu.gov.cn/staticimage?center=${antiLng},${antiLat}&zoom=3&width=${size}&height=${size}&layer=img&tk=${tdtToken}`;
-    antipodeImg = await loadImage(url);
+    const cacheKey = `staticmap_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
+    
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            antipodeImg = await loadImage(cached);
+        } catch (e) {}
+    }
+    
+    if (!antipodeImg) {
+        const url = `https://api.tianditu.gov.cn/staticimage?center=${antiLng},${antiLat}&zoom=3&width=${size}&height=${size}&layer=img&tk=7da0bbd486e5a061e5329472bed5ba41`;
+        antipodeImg = await loadImageWithCache(url, cacheKey);
+    }
 }
 
          // ---- 3b. 地图标签 + 经纬度 ----
@@ -1779,14 +1770,35 @@ ctx.clip();
         // ================================
 
     } else {
-        ctx.fillStyle = '#e8e0d6';
-        ctx.fillRect(rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
-        ctx.fillStyle = '#999';
-        ctx.font = '14px "Noto Sans SC", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(item.label, rx + rw / 2, ry + rh / 2);
-    }
+    // ✅ 品牌占位图（当地图图片加载失败时显示）
+    // 1. 深色渐变背景
+    const grad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    grad.addColorStop(0, '#1a2a4a');
+    grad.addColorStop(1, '#0d1a30');
+    ctx.fillStyle = grad;
+    ctx.fillRect(rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
+
+    // 2. 绘制装饰圆环（模拟地球）
+    ctx.beginPath();
+    ctx.arc(rx + rw / 2, ry + rh / 2 - 10, 36, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(232, 146, 58, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 3. 品牌主标题（金色）
+    ctx.fillStyle = '#e8923a';
+    ctx.font = 'bold 20px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✦ 对跖点漫游局', rx + rw / 2, ry + rh / 2 - 4);
+
+    // 4. 副标题（白色半透明）
+    ctx.fillStyle = 'rgba(245, 240, 232, 0.7)';
+    ctx.font = '14px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillText('探索地球另一端', rx + rw / 2, ry + rh / 2 + 34);
+}
     ctx.restore();
 
     ctx.save();
@@ -2061,10 +2073,36 @@ if (productImg) {
 
     document.getElementById('shareOverlay').classList.add('active');
 }
+// 加载图片并存入 localStorage 缓存
+async function loadImageWithCache(url, cacheKey) {
+    try {
+        const img = await loadImage(url);
+        if (img) {
+            // 将图片转为 Base64 存入缓存
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            // 缓存大小限制：单个图片通常 < 50KB，可缓存数十张
+            try {
+                localStorage.setItem(cacheKey, dataUrl);
+            } catch (e) {
+                // localStorage 已满，忽略
+                console.warn('缓存存储失败:', e);
+            }
+        }
+        return img;
+    } catch (e) {
+        console.warn('图片加载失败:', e);
+        return null;
+    }
+}
         function loadImage(src) {
             return new Promise((resolve) => {
                 const img = new Image();
-                img.crossOrigin = 'anonymous';
                 img.onload = () => resolve(img);
                 img.onerror = () => resolve(null);
                 img.src = src;
