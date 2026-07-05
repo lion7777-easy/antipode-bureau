@@ -1610,11 +1610,11 @@ if (!originImg && city.lat && city.lng) {
             console.warn('缓存图片加载失败，重新请求');
         }
     }
-    if (!originImg) {
-        // OSM 静态图（纬度在前，经度在后）
-        const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${city.lat},${city.lng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
-        originImg = await loadImageWithCache(url, cacheKey);
-    }
+   if (!originImg) {
+    // OSM 静态图（使用法国镜像，更稳定）
+    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${city.lat},${city.lng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
+    originImg = await loadImageWithCache(url, cacheKey);
+}
 }
 
 // 对跖点坐标计算（独立于上面的 if）
@@ -1636,9 +1636,9 @@ if (!antipodeImg && antiLat && antiLng) {
         } catch (e) {}
     }
     if (!antipodeImg) {
-        const url = `https://staticmap.openstreetmap.de/staticmap.php?center=${antiLat},${antiLng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
-        antipodeImg = await loadImageWithCache(url, cacheKey);
-    }
+    const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${antiLat},${antiLng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
+    antipodeImg = await loadImageWithCache(url, cacheKey);
+}
 }
 
          // ---- 3b. 地图标签 + 经纬度 ----
