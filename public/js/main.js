@@ -814,39 +814,88 @@ triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
         // 1. 优先高德（国内精度最高）
         try {
             const amapResult = await searchWithAmapDomestic(searchKeyword);
-            if (amapResult) {
-                console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
-                // ---- 获取对跖点名称 ----
-                let antipodeName = '地球另一端';
-                let antipodeNameEn = '';
-                try {
-                    const anti = calculateAntipode(amapResult.lat, amapResult.lng);
-                    const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
-                        headers: { 'ngrok-skip-browser-warning': 'true' }
-                    });
-                    const geoData = await geoRes.json();
-                    if (geoData.success && geoData.name) {
-                        antipodeName = geoData.name;
-                        antipodeNameEn = geoData.nameEn || '';
-                    }
-                } catch (e) {
-                    console.warn('获取对跖点名称失败:', e);
-                }
-                // ---- 构造临时城市数据 ----
-const tempCityData = {
-    lat: amapResult.lat,
-    lng: amapResult.lng,
-    name_cn: searchKeyword,
-    name_en: nameEn,
-    antipode_name: antipodeName,
-    antipode_name_en: antipodeNameEn,
-    poem: '「这一刻，你与地球背面，同频呼吸。」',
-    poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
-    origin_image: '',
-    antipode_image: ''
-};
-                currentCityData = tempCityData;
-                await handleSearchSuccess(amapResult.lat, amapResult.lng, searchKeyword, tempCityData);
+           if (amapResult) {
+    console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
+    // ---- 获取对跖点名称 ----
+    let antipodeName = '地球另一端';
+    let antipodeNameEn = '';
+    try {
+        const anti = calculateAntipode(amapResult.lat, amapResult.lng);
+        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.success && geoData.name) {
+            antipodeName = geoData.name;
+            antipodeNameEn = geoData.nameEn || '';
+        }
+    } catch (e) {
+        console.warn('获取对跖点名称失败:', e);
+    }
+    // ---- 获取拼音 ----
+    let nameEn = '';
+    try {
+        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const pinyinData = await pinyinRes.json();
+        if (pinyinData.success) {
+            nameEn = pinyinData.pinyin;
+        }
+    } catch (e) {
+        console.warn('拼音获取失败:', e);
+    }
+    // ---- 构造临时城市数据 ----
+    const tempCityData = {
+        lat: amapResult.lat,
+        lng: amapResult.lng,
+        name_cn: searchKeyword,
+        name_en: nameEn,
+        antipode_name: antipodeName,
+        antipode_name_en: antipodeNameEn,
+        poem: '「这一刻，你与地球背面，同频呼吸。」',
+        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
+        origin_image: '',
+        antipode_image: ''
+    };
+    currentCityData = tempCityData;
+    await handleSearchSuccess(amapResult.lat, amapResult.lng, searchKeyword, tempCityData);
+    // ...
+}
+
+
+javascript
+if (tianDiTuResult) {
+    console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
+    let antipodeName = '地球另一端';
+    let antipodeNameEn = '';
+    try {
+        const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
+        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.success && geoData.name) {
+            antipodeName = geoData.name;
+            antipodeNameEn = geoData.nameEn || '';
+        }
+    } catch (e) {
+        console.warn('获取对跖点名称失败:', e);
+    }
+    const tempCityData = {
+        lat: amapResult.lat,   // ← 这里错误使用了 amapResult，应该用 tianDiTuResult
+        lng: amapResult.lng,
+        name_cn: searchKeyword,
+        name_en: nameEn,       // ← nameEn 未定义
+        antipode_name: antipodeName,
+        antipode_name_en: antipodeNameEn,
+        poem: '「这一刻，你与地球背面，同频呼吸。」',
+        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
+        origin_image: '',
+        antipode_image: ''
+    };
+    currentCityData = tempCityData;
+    await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
                 isSearching = false;
                 document.getElementById('searchBtn').disabled = false;
                 showLoading(false);
@@ -858,38 +907,51 @@ const tempCityData = {
         // 2. 天地图作为备选
         try {
             const tianDiTuResult = await searchWithTianDiTu(searchKeyword);
-            if (tianDiTuResult) {
-                console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
-                let antipodeName = '地球另一端';
-                let antipodeNameEn = '';
-                try {
-                    const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
-                    const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
-                        headers: { 'ngrok-skip-browser-warning': 'true' }
-                    });
-                    const geoData = await geoRes.json();
-                    if (geoData.success && geoData.name) {
-                        antipodeName = geoData.name;
-                        antipodeNameEn = geoData.nameEn || '';
-                    }
-                } catch (e) {
-                    console.warn('获取对跖点名称失败:', e);
-                }
-                // ---- 构造临时城市数据 ----
-const tempCityData = {
-    lat: amapResult.lat,
-    lng: amapResult.lng,
-    name_cn: searchKeyword,
-    name_en: nameEn,
-    antipode_name: antipodeName,
-    antipode_name_en: antipodeNameEn,
-    poem: '「这一刻，你与地球背面，同频呼吸。」',
-    poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
-    origin_image: '',
-    antipode_image: ''
-};
-                currentCityData = tempCityData;
-                await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
+           if (tianDiTuResult) {
+    console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
+    let antipodeName = '地球另一端';
+    let antipodeNameEn = '';
+    try {
+        const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
+        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.success && geoData.name) {
+            antipodeName = geoData.name;
+            antipodeNameEn = geoData.nameEn || '';
+        }
+    } catch (e) {
+        console.warn('获取对跖点名称失败:', e);
+    }
+    // ---- 获取拼音 ----
+    let nameEn = '';
+    try {
+        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const pinyinData = await pinyinRes.json();
+        if (pinyinData.success) {
+            nameEn = pinyinData.pinyin;
+        }
+    } catch (e) {
+        console.warn('拼音获取失败:', e);
+    }
+    // ---- 构造临时城市数据 ----
+    const tempCityData = {
+        lat: tianDiTuResult.lat,
+        lng: tianDiTuResult.lng,
+        name_cn: searchKeyword,
+        name_en: nameEn,
+        antipode_name: antipodeName,
+        antipode_name_en: antipodeNameEn,
+        poem: '「这一刻，你与地球背面，同频呼吸。」',
+        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
+        origin_image: '',
+        antipode_image: ''
+    };
+    currentCityData = tempCityData;
+    await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
                 isSearching = false;
                 document.getElementById('searchBtn').disabled = false;
                 showLoading(false);
@@ -904,26 +966,41 @@ const tempCityData = {
 
     // ===== 检测经纬度（支持多种格式） =====
     const coord = parseCoordinate(searchKeyword);
-              if (coord) {
-            const { lat, lng } = coord;
-            console.log(`📍 经纬度定位: ${lat}, ${lng}`);
-            const antipode = calculateAntipode(lat, lng);
-            updateAll(lat, lng);
-            const poemHTML = '「这一刻，你与地球背面，同频呼吸。」<br>In this moment, you breathe in sync with the far side of the earth.';
-            document.getElementById('poemDisplay').innerHTML = poemHTML;
+if (coord) {
+    const { lat, lng } = coord;
+    console.log(`📍 经纬度定位: ${lat}, ${lng}`);
+    const antipode = calculateAntipode(lat, lng);
+    updateAll(lat, lng);
+    const poemHTML = '「这一刻，你与地球背面，同频呼吸。」<br>In this moment, you breathe in sync with the far side of the earth.';
+    document.getElementById('poemDisplay').innerHTML = poemHTML;
 
-            addToHistory(searchKeyword);
-            currentCityData = {
-                lat,
-                lng,
-                name_cn: `📍 ${formatCoord(lat, lng)}`,
-                name_en: nameEn,
-                antipode_name: '地球另一端',
-                antipode_name_en: '',
-                poem: '「这一刻，你与地球背面，同频呼吸。」\nIn this moment, you breathe in sync with the far side of the earth.',
-                origin_image: '',
-                antipode_image: ''
-            };
+    addToHistory(searchKeyword);
+
+    // ---- 获取拼音 ----
+    let nameEn = '';
+    try {
+        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const pinyinData = await pinyinRes.json();
+        if (pinyinData.success) {
+            nameEn = pinyinData.pinyin;
+        }
+    } catch (e) {
+        console.warn('拼音获取失败:', e);
+    }
+    // ---- 构造城市数据 ----
+    currentCityData = {
+        lat,
+        lng,
+        name_cn: `📍 ${formatCoord(lat, lng)}`,
+        name_en: nameEn,   // 现在 nameEn 已定义
+        antipode_name: '地球另一端',
+        antipode_name_en: '',
+        poem: '「这一刻，你与地球背面，同频呼吸。」\nIn this moment, you breathe in sync with the far side of the earth.',
+        origin_image: '',
+        antipode_image: ''
+    };
 
             // ===== 调用通用处理（缓存 + 日限） =====
             await handleSearchSuccess(lat, lng, searchKeyword, null);
@@ -1616,47 +1693,42 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
     ctx.fillText(antiCoordText, rightEdge - rightLabelWidth - spaceWidth, imgY + 10);
 
     // ---- 3c. 邮票齿孔路径生成器 ----
-    function createStampPath(rx, ry, rw, rh) {
-        const tooth = 10;
-        const cornerRadius = tooth;
-        const cols = Math.max(6, Math.floor((rw - 2 * cornerRadius) / 24));
-        const rows = Math.max(4, Math.floor((rh - 2 * cornerRadius) / 24));
-        const stepX = (rw - 2 * cornerRadius) / cols;
-        const stepY = (rh - 2 * cornerRadius) / rows;
+    function drawStampPath(ctx, rx, ry, rw, rh) {
+    const tooth = 10;
+    const cornerRadius = tooth;
+    const cols = Math.max(6, Math.floor((rw - 2 * cornerRadius) / 24));
+    const rows = Math.max(4, Math.floor((rh - 2 * cornerRadius) / 24));
+    const stepX = (rw - 2 * cornerRadius) / cols;
+    const stepY = (rh - 2 * cornerRadius) / rows;
 
-        const path = new Path2D();
-        path.moveTo(rx, ry + cornerRadius);
-        path.arc(rx + cornerRadius, ry + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2, false);
-
-        for (let i = 0; i < cols; i++) {
-            const cx = rx + cornerRadius + (i + 0.5) * stepX;
-            path.lineTo(cx - tooth, ry);
-            path.arc(cx, ry, tooth, Math.PI, 0, true);
-        }
-        path.arc(rx + rw - cornerRadius, ry + cornerRadius, cornerRadius, -Math.PI / 2, 0, false);
-
-        for (let i = 0; i < rows; i++) {
-            const cy = ry + cornerRadius + (i + 0.5) * stepY;
-            path.lineTo(rx + rw, cy - tooth);
-            path.arc(rx + rw, cy, tooth, -Math.PI / 2, Math.PI / 2, true);
-        }
-        path.arc(rx + rw - cornerRadius, ry + rh - cornerRadius, cornerRadius, 0, Math.PI / 2, false);
-
-        for (let i = cols - 1; i >= 0; i--) {
-            const cx = rx + cornerRadius + (i + 0.5) * stepX;
-            path.lineTo(cx + tooth, ry + rh);
-            path.arc(cx, ry + rh, tooth, 0, Math.PI, true);
-        }
-        path.arc(rx + cornerRadius, ry + rh - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, false);
-
-        for (let i = rows - 1; i >= 0; i--) {
-            const cy = ry + cornerRadius + (i + 0.5) * stepY;
-            path.lineTo(rx, cy + tooth);
-            path.arc(rx, cy, tooth, Math.PI / 2, -Math.PI / 2, true);
-        }
-        path.closePath();
-        return path;
+    ctx.beginPath();
+    ctx.moveTo(rx, ry + cornerRadius);
+    ctx.arc(rx + cornerRadius, ry + cornerRadius, cornerRadius, Math.PI, -Math.PI / 2, false);
+    for (let i = 0; i < cols; i++) {
+        const cx = rx + cornerRadius + (i + 0.5) * stepX;
+        ctx.lineTo(cx - tooth, ry);
+        ctx.arc(cx, ry, tooth, Math.PI, 0, true);
     }
+    ctx.arc(rx + rw - cornerRadius, ry + cornerRadius, cornerRadius, -Math.PI / 2, 0, false);
+    for (let i = 0; i < rows; i++) {
+        const cy = ry + cornerRadius + (i + 0.5) * stepY;
+        ctx.lineTo(rx + rw, cy - tooth);
+        ctx.arc(rx + rw, cy, tooth, -Math.PI / 2, Math.PI / 2, true);
+    }
+    ctx.arc(rx + rw - cornerRadius, ry + rh - cornerRadius, cornerRadius, 0, Math.PI / 2, false);
+    for (let i = cols - 1; i >= 0; i--) {
+        const cx = rx + cornerRadius + (i + 0.5) * stepX;
+        ctx.lineTo(cx + tooth, ry + rh);
+        ctx.arc(cx, ry + rh, tooth, 0, Math.PI, true);
+    }
+    ctx.arc(rx + cornerRadius, ry + rh - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, false);
+    for (let i = rows - 1; i >= 0; i--) {
+        const cy = ry + cornerRadius + (i + 0.5) * stepY;
+        ctx.lineTo(rx, cy + tooth);
+        ctx.arc(rx, cy, tooth, Math.PI / 2, -Math.PI / 2, true);
+    }
+    ctx.closePath();
+}
 
     // ---- 3d. 绘制两张邮票地图 ----
 const x1 = 24;
@@ -1673,19 +1745,21 @@ const padding = 16;
     const rw = imgWidth;
     const rh = imgHeight;
 
-    const stampPath = createStampPath(rx, ry, rw, rh);
+    // const stampPath = createStampPath(rx, ry, rw, rh);  ← 删除这行
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 4;
-    ctx.fillStyle = '#ffffff';
-    ctx.fill(stampPath);
-    ctx.restore();
+ctx.save();
+ctx.shadowColor = 'rgba(0,0,0,0.18)';
+ctx.shadowBlur = 12;
+ctx.shadowOffsetX = 2;
+ctx.shadowOffsetY = 4;
+ctx.fillStyle = '#ffffff';
+drawStampPath(ctx, rx, ry, rw, rh);  // 直接绘制路径
+ctx.fill();
+ctx.restore();
 
-    ctx.save();
-    ctx.clip(stampPath);
+ctx.save();
+drawStampPath(ctx, rx, ry, rw, rh);  // 重新绘制路径用于裁剪
+ctx.clip();
     if (item.img) {
         ctx.drawImage(item.img, rx + padding, ry + padding, rw - padding * 2, rh - padding * 2);
 
@@ -1716,10 +1790,11 @@ const padding = 16;
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(160, 150, 140, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.stroke(stampPath);
-    ctx.restore();
+drawStampPath(ctx, rx, ry, rw, rh);  // 重新绘制路径用于描边
+ctx.strokeStyle = 'rgba(160, 150, 140, 0.35)';
+ctx.lineWidth = 1;
+ctx.stroke();
+ctx.restore();
 });
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
