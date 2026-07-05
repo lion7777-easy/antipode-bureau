@@ -2601,6 +2601,7 @@ if (dayNightToggle) {
             var script = document.createElement('script');
             script.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_KEY;
             script.async = true;
+script.referrerPolicy = 'no-referrer';  // 新增这一行
             script.onload = initMaps;
             script.onerror = function() { alert('高德地图加载失败，请检查网络'); };
             document.head.appendChild(script);
