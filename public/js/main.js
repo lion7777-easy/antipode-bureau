@@ -1610,7 +1610,7 @@ if (!originImg && city.lat && city.lng) {
             console.warn('缓存图片加载失败，重新请求');
         }
     }
-   if (!originImg) {
+  if (!originImg) {
     // OSM 静态图（使用法国镜像，更稳定）
     const url = `https://staticmap.openstreetmap.fr/staticmap.php?center=${city.lat},${city.lng}&zoom=8&size=${size}x${size}&maptype=mapnik`;
     originImg = await loadImageWithCache(url, cacheKey);
