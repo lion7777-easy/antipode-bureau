@@ -1702,7 +1702,7 @@ ctx.restore();
 ctx.save();
 ctx.setLineDash([2, 8]);
 ctx.lineWidth = 1.0;
-ctx.strokeStyle = 'rgba(120, 100, 80, 0.30)';
+ctx.strokeStyle = 'rgba(120, 100, 80, 0.50)';
 ctx.beginPath();
 
     // 经线：-60°, 0°, 60°, 120°
@@ -1976,7 +1976,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.clip();
    if (img) {
     // 图片四周留出内边距，露出白色边框和锯齿边缘
-    var pad = 12;  // 与地图的内边距保持一致
+    var pad = 24;  // 与地图的内边距保持一致
     var imgX = rx + pad;
     var imgY = ry + pad;
     var imgW = rw - pad * 2;
