@@ -1488,8 +1488,8 @@ function getThemeBg(city) {
 // ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图，支持双色模式） =====
 let worldMapData = null;
 let parchmentTexture = null;
-// ===== 世界地图绘制函数（支持方形邮票 + 羊皮纸纹理） =====
-async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, stretch = false) {
+// ===== 世界地图绘制函数（支持方形邮票 + 羊皮纸纹理 + 内缩留白） =====
+async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0) {
     // 1. 加载 GeoJSON 数据
     if (!worldMapData) {
         try {
@@ -1531,30 +1531,28 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     const isOriginMode = (originCoord && typeof originCoord.lat === 'number' && typeof originCoord.lng === 'number') &&
                          (!antipodeCoord || typeof antipodeCoord.lat !== 'number');
 
-    // 4. 配色方案（你选定的 #d5c8b8 和 #f5f0e6）
+    // 4. 配色方案
     let landColor, seaColor, lineColor;
     if (isOriginMode) {
-        landColor = '#d5c8b8';   // 沙色（陆地）
-        seaColor = '#f5f0e6';    // 浅羊皮纸（海洋）
-        lineColor = '#c8b8a0';   // 描边（略深一点）
+        landColor = '#d5c8b8';
+        seaColor = '#f5f0e6';
+        lineColor = '#c8b8a0';
     } else {
-        landColor = '#f5f0e6';   // 浅羊皮纸（陆地）
-        seaColor = '#d5c8b8';    // 沙色（海洋）
-        lineColor = '#c8b8a0';   // 描边
+        landColor = '#f5f0e6';
+        seaColor = '#d5c8b8';
+        lineColor = '#c8b8a0';
     }
 
-    // 5. 计算绘制区域（支持拉伸填满方形）
-    const padding = size * 0.06;  // 稍微减小边距
+    // 5. 计算绘制区域（支持拉伸填满方形 + 内缩留白）
+    const padding = size * 0.06 + innerPadding;
     let mapWidth, mapHeight, offsetX, offsetY;
 
     if (stretch) {
-        // ===== 拉伸模式：地图填满整个方形 =====
         mapWidth = size - padding * 2;
         mapHeight = size - padding * 2;
         offsetX = 0;
         offsetY = 0;
     } else {
-        // ===== 保持比例模式（备用） =====
         const containerWidth = size - padding * 2;
         const containerHeight = size - padding * 2;
         const mapAspect = 2;
@@ -1585,12 +1583,22 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.fillRect(x + padding, y + padding, mapWidth, mapHeight);
     ctx.restore();
 
+    // ===== 新增：海洋纹理 =====
+    ctx.save();
+    for (var i = 0; i < 1200; i++) {
+        var xPos = x + padding + Math.random() * mapWidth;
+        var yPos = y + padding + Math.random() * mapHeight;
+        var alpha = Math.random() * 0.03;
+        ctx.fillStyle = 'rgba(180, 170, 160, ' + alpha + ')';
+        ctx.fillRect(xPos, yPos, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    ctx.restore();
+
     // 8. 绘制大陆（填充 + 描边）
     ctx.save();
     ctx.beginPath();
     const features = worldMapData.features;
     if (!features || !Array.isArray(features)) {
-        // 数据异常，绘制占位图
         ctx.restore();
         ctx.save();
         ctx.fillStyle = '#e8dcc8';
@@ -1630,30 +1638,117 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
         });
     });
     ctx.closePath();
-    ctx.fillStyle = landColor;
+
+    // ===== 改为：径向渐变填充 =====
+    var grad = ctx.createRadialGradient(
+        x + padding + mapWidth * 0.35,
+        y + padding + mapHeight * 0.35,
+        0,
+        x + padding + mapWidth * 0.35,
+        y + padding + mapHeight * 0.35,
+        Math.max(mapWidth, mapHeight) * 0.7
+    );
+    if (isOriginMode) {
+        grad.addColorStop(0, '#e8dcc8');
+        grad.addColorStop(1, '#d5c8b8');
+    } else {
+        grad.addColorStop(0, '#f0ece4');
+        grad.addColorStop(1, '#e0d5c5');
+    }
+    ctx.fillStyle = grad;
     ctx.fill();
+
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 1.0;
     ctx.stroke();
     ctx.restore();
 
-    // 9. 叠加羊皮纸纹理（核心新增）
+    // ===== 新增：陆地噪点 =====
+    ctx.save();
+    // 用矩形裁剪限制噪点范围到地图区域内
+    ctx.beginPath();
+    ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
+    ctx.clip();
+    for (var j = 0; j < 1500; j++) {
+        var px = x + padding + Math.random() * mapWidth;
+        var py = y + padding + Math.random() * mapHeight;
+        ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.05) + ')';
+        ctx.fillRect(px, py, 1, 1);
+    }
+    ctx.restore();
+
+    // ===== 新增：赤道 + 回归线 =====
+    ctx.save();
+    ctx.setLineDash([3, 6]);
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(120, 100, 80, 0.12)';
+    ctx.beginPath();
+
+    var eqY = project(0, 0).y;
+    ctx.moveTo(x + padding, eqY);
+    ctx.lineTo(x + padding + mapWidth, eqY);
+
+    var tropicY1 = project(23.5, 0).y;
+    ctx.moveTo(x + padding, tropicY1);
+    ctx.lineTo(x + padding + mapWidth, tropicY1);
+
+    var tropicY2 = project(-23.5, 0).y;
+    ctx.moveTo(x + padding, tropicY2);
+    ctx.lineTo(x + padding + mapWidth, tropicY2);
+
+    ctx.stroke();
+    ctx.restore();
+
+    // ===== 新增：经纬网（极淡、稀疏） =====
+    ctx.save();
+    ctx.setLineDash([2, 8]);
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(120, 100, 80, 0.06)';
+    ctx.beginPath();
+
+    // 经线：-60°, 0°, 60°, 120°
+    var longitudes = [-60, 0, 60, 120];
+    longitudes.forEach(function(lng) {
+        var pts = [];
+        for (var lat = -80; lat <= 80; lat += 2) {
+            var pos = project(lat, lng);
+            pts.push(pos);
+        }
+        if (pts.length > 1) {
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (var k = 1; k < pts.length; k++) {
+                ctx.lineTo(pts[k].x, pts[k].y);
+            }
+        }
+    });
+
+    // 纬线：-60°, -30°, 0°, 30°, 60°
+    var latitudes = [-60, -30, 0, 30, 60];
+    latitudes.forEach(function(lat) {
+        var pos1 = project(lat, -170);
+        var pos2 = project(lat, 170);
+        ctx.moveTo(pos1.x, pos1.y);
+        ctx.lineTo(pos2.x, pos2.y);
+    });
+
+    ctx.stroke();
+    ctx.restore();
+
+    // 9. 叠加羊皮纸纹理
     if (parchmentTexture) {
         ctx.save();
-        // 裁剪到地图区域，防止纹理溢出
         ctx.beginPath();
         ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
         ctx.clip();
 
-        // 创建平铺图案
         const pattern = ctx.createPattern(parchmentTexture, 'repeat');
         ctx.fillStyle = pattern;
-        ctx.globalAlpha = 0.30;  // 透明度控制纹理强度（0.15~0.30 可调）
+        ctx.globalAlpha = 0.30;
         ctx.fillRect(x + padding, y + padding, mapWidth, mapHeight);
         ctx.restore();
     }
 
-    // 10. 绘制标记点
+    // 10. 绘制标记点（改为水滴地标）
     const points = [];
     if (isOriginMode && originCoord) {
         points.push({ coord: originCoord, color: '#e8923a' });
@@ -1678,16 +1773,9 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
         ctx.fill();
         ctx.restore();
 
-        // 实心圆点
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.15)';
-        ctx.shadowBlur = 4;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.restore();
+        // 水滴地标（替代圆点）
+        var size = 7;
+        drawTeardropOnCanvas(ctx, dotX, dotY, color, size);
     });
 }
 
@@ -1944,11 +2032,13 @@ const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
 const padding = 16;
 
-// 【新增】绘制单张邮票（优先显示图片，没有图片则画地图）
-async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipodeCoord, stretch) {
-    const rx = x, ry = y, rw = size, rh = size;
+async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0) {
+    const rx = x;
+    const ry = y;
+    const rw = size;
+    const rh = size;
 
-    // 第一步：绘制白色邮票底（整个齿孔区域）
+    // 第一步：绘制白色邮票底
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur = 10;
@@ -1959,26 +2049,14 @@ async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipo
     ctx.fill();
     ctx.restore();
 
-    // 第二步：裁剪到齿孔内部
+    // 第二步：裁剪并绘制地图内容
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.clip();
-
-    if (img) {
-        // ✅ 有图片 → 图片绘制在内部方形区域（四周留白边）
-        const margin = 20; // 白色边框宽度（像素）
-        const innerX = rx + margin;
-        const innerY = ry + margin;
-        const innerW = rw - margin * 2;
-        const innerH = rh - margin * 2;
-        ctx.drawImage(img, innerX, innerY, innerW, innerH);
-    } else {
-        // ❌ 没有图片 → 绘制世界地图（地图本身有底色，保留原样）
-        await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
-    }
+    await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch, innerPadding);
     ctx.restore();
 
-    // 第三步：白色粗描边（覆盖在齿孔边缘）
+    // 第三步：白色粗描边
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.strokeStyle = '#ffffff';
@@ -1995,11 +2073,21 @@ async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipo
     ctx.restore();
 }
 
-// 左侧邮票：优先 originImg
-await drawStampWithImageOrMap(ctx, x1, y, imgWidth, originImg, { lat: city.lat, lng: city.lng }, null, true);
+// 左侧邮票：只显示原始位置（橙色）
+await drawStampWithMap(ctx, x1, y, imgWidth,
+    { lat: city.lat, lng: city.lng },
+    null,
+    true,
+    10   // ← innerPadding
+);
 
-// 右侧邮票：优先 antipodeImg
-await drawStampWithImageOrMap(ctx, x2, y, imgWidth, antipodeImg, null, { lat: antiLat, lng: antiLng }, true);
+// 右侧邮票：只显示对跖点（蓝色）
+await drawStampWithMap(ctx, x2, y, imgWidth,
+    null,
+    { lat: antiLat, lng: antiLng },
+    true,
+    10   // ← innerPadding
+);
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
         const stampImg = await loadImage('/images/stamp.png');
