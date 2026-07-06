@@ -1834,48 +1834,7 @@ ctx.fillText(brandMain, W/2, 20);   // 移除星标
    const brandSub = detectBrand() === 'en' ? '对跖点漫游局' : 'Antipodal Bureau';
 ctx.fillText(brandSub, W/2, 60);
     ctx.globalAlpha = 1.0;
-function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
 
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + size * 0.8);
-    ctx.bezierCurveTo(
-        cx + size * 0.5, cy + size * 0.2,
-        cx + size * 0.6, cy - size * 0.1,
-        cx + size * 0.3, cy - size * 0.5
-    );
-    ctx.bezierCurveTo(
-        cx + size * 0.15, cy - size * 0.7,
-        cx - size * 0.15, cy - size * 0.7,
-        cx - size * 0.3, cy - size * 0.5
-    );
-    ctx.bezierCurveTo(
-        cx - size * 0.6, cy - size * 0.1,
-        cx - size * 0.5, cy + size * 0.2,
-        cx, cy + size * 0.8
-    );
-    ctx.closePath();
-
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx - size * 0.2, cy - size * 0.3, size * 0.12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fill();
-
-    ctx.restore();
-}
 
     // ===== 3. 地图区域 =====
     const topMargin = 76;
@@ -2345,6 +2304,48 @@ async function loadImageWithCache(url, cacheKey) {
         console.warn('图片加载失败:', e);
         return null;
     }
+}
+function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + size * 0.8);
+    ctx.bezierCurveTo(
+        cx + size * 0.5, cy + size * 0.2,
+        cx + size * 0.6, cy - size * 0.1,
+        cx + size * 0.3, cy - size * 0.5
+    );
+    ctx.bezierCurveTo(
+        cx + size * 0.15, cy - size * 0.7,
+        cx - size * 0.15, cy - size * 0.7,
+        cx - size * 0.3, cy - size * 0.5
+    );
+    ctx.bezierCurveTo(
+        cx - size * 0.6, cy - size * 0.1,
+        cx - size * 0.5, cy + size * 0.2,
+        cx, cy + size * 0.8
+    );
+    ctx.closePath();
+
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx - size * 0.2, cy - size * 0.3, size * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+
+    ctx.restore();
 }
         function loadImage(src) {
     return new Promise((resolve) => {
