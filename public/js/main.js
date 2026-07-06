@@ -1954,7 +1954,6 @@ if (!city.origin_image && !city.antipode_image) {
 const x1 = 24;
 const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
-const padding = 16;
 async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0, img = null) {
     const rx = x;
     const ry = y;
@@ -1972,9 +1971,9 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.fill();
     ctx.restore();
 
-    // ===== 第二步：计算内部矩形区域（用于图片/地图，以及白色花边） =====
-    // 花边宽度 = 邮票尺寸的 15%（让白色花边明显）
-    var margin = size * 0.15;
+    // ===== 第二步：计算内部矩形区域（花边宽度 = 尺寸的 20%） =====
+    // 用 20% 让花边更明显，之前 15% 可能不够
+    var margin = size * 0.20;
     var rectX = rx + margin;
     var rectY = ry + margin;
     var rectW = rw - margin * 2;
@@ -1982,19 +1981,19 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
 
     // ===== 第三步：在矩形区域内绘制图片或地图 =====
     if (img) {
-        // 有图片 → 绘制矩形图片（不会被锯齿裁剪）
+        // 有图片 → 直接绘制矩形图片（不裁剪）
         ctx.save();
         ctx.drawImage(img, rectX, rectY, rectW, rectH);
         ctx.restore();
     } else {
         // 没有图片 → 在矩形区域内绘制世界地图
         ctx.save();
-        // 使用矩形裁剪（不是锯齿裁剪），让地图在矩形内显示
         ctx.beginPath();
         ctx.rect(rectX, rectY, rectW, rectH);
         ctx.clip();
-        // 调整 drawWorldMapContent 的坐标，使其绘制在矩形区域内
-        await drawWorldMapContent(ctx, rectX, rectY, rectW, originCoord, antipodeCoord, stretch, innerPadding);
+        // 注意：drawWorldMapContent 内部使用 padding 参数控制绘制区域
+        // 这里传入 innerPadding = 0，因为 margin 已经控制了花边
+        await drawWorldMapContent(ctx, rectX, rectY, rectW, originCoord, antipodeCoord, stretch, 0);
         ctx.restore();
     }
 
