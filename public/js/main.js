@@ -1973,7 +1973,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
 
     // ===== 第二步：计算内部矩形区域（花边宽度 = 尺寸的 20%） =====
     // 用 20% 让花边更明显，之前 15% 可能不够
-    var margin = size * 0.8;
+    var margin = size * 0.08;
     var rectX = rx + margin;
     var rectY = ry + margin;
     var rectW = rw - margin * 2;
