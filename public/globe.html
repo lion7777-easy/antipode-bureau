@@ -137,38 +137,40 @@ const nightMap = textureLoader.load('/images/earth_night.jpg',
         `;
 
         const fragmentShader = `
-            uniform sampler2D dayMap;
-            uniform sampler2D nightMap;
-            uniform vec3 lightDirection;
-            uniform float mixFactor;
+    uniform sampler2D dayMap;
+    uniform sampler2D nightMap;
+    uniform vec3 lightDirection;
+    uniform float isNightMode;
 
-            varying vec3 vNormal;
-            varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec2 vUv;
 
-            void main() {
-                vec3 normal = normalize(vNormal);
-                vec3 lightDir = normalize(lightDirection);
-                float intensity = max(0.0, dot(normal, -lightDir));
-                
-                vec4 dayColor = texture2D(dayMap, vUv);
-                vec4 nightColor = texture2D(nightMap, vUv);
-                
-               // 日间纹理光照计算（进一步调亮）
-// 修改为（大幅提高环境光，降低漫反射依赖）
-float ambient = 1.4;      // 从 0.85 提升到 1.4，让暗部直接变亮
-float diffuse = max(0.0, dot(normal, -lightDir)) * 0.3; // 漫反射稍微降低，保留立体感
-float lighting = ambient + diffuse; // 范围约 1.4 ~ 1.7
-lighting = min(lighting, 1.5); // 放宽上限
-vec3 litDayColor = dayColor.rgb * lighting;
-                
-                float nightWeight = (1.0 - intensity) * mixFactor;
-nightWeight = clamp(nightWeight, 0.0, 0.7);  // ← 新增这一行
-                nightWeight = smoothstep(0.1, 0.6, nightWeight);
-                
-                vec4 finalColor = vec4(mix(litDayColor, nightColor.rgb, nightWeight), 1.0);
-                gl_FragColor = finalColor;
-            }
-        `;
+    void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 lightDir = normalize(lightDirection);
+        float intensity = max(0.0, dot(normal, -lightDir));
+        
+        vec4 dayColor = texture2D(dayMap, vUv);
+        vec4 nightColor = texture2D(nightMap, vUv);
+        
+        // 日间纹理光照计算
+        float ambient = 1.4;
+        float diffuse = max(0.0, dot(normal, -lightDir)) * 0.3;
+        float lighting = min(ambient + diffuse, 1.5);
+        vec3 litDayColor = dayColor.rgb * lighting;
+        
+        // 夜景混合：仅在夜间模式下生效
+        float nightWeight = 0.0;
+        if (isNightMode > 0.5) {
+            nightWeight = (1.0 - intensity) * 0.5;
+            nightWeight = clamp(nightWeight, 0.0, 0.7);
+        }
+        nightWeight = smoothstep(0.1, 0.6, nightWeight);
+        
+        vec3 finalColor = mix(litDayColor, nightColor.rgb, nightWeight);
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+`;
 
         // 创建着色器材质
         const earthMaterial = new THREE.ShaderMaterial({
