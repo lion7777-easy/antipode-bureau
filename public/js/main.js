@@ -1966,7 +1966,7 @@ async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipo
 
     if (img) {
         // ✅ 有图片 → 图片绘制在内部方形区域（四周留白边）
-        const margin = 10; // 白色边框宽度（像素）
+        const margin = 28; // 白色边框宽度（像素）
         const innerX = rx + margin;
         const innerY = ry + margin;
         const innerW = rw - margin * 2;
