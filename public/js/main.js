@@ -1948,7 +1948,7 @@ const padding = 16;
 async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipodeCoord, stretch) {
     const rx = x, ry = y, rw = size, rh = size;
 
-    // 第一步：绘制白色邮票底
+    // 第一步：绘制白色邮票底（整个齿孔区域）
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur = 10;
@@ -1959,21 +1959,26 @@ async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipo
     ctx.fill();
     ctx.restore();
 
-    // 第二步：裁剪并绘制内容
+    // 第二步：裁剪到齿孔内部
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.clip();
 
     if (img) {
-        // ✅ 有图片 → 图片铺满整个邮票
-        ctx.drawImage(img, rx, ry, rw, rh);
+        // ✅ 有图片 → 图片绘制在内部方形区域（四周留白边）
+        const margin = 10; // 白色边框宽度（像素）
+        const innerX = rx + margin;
+        const innerY = ry + margin;
+        const innerW = rw - margin * 2;
+        const innerH = rh - margin * 2;
+        ctx.drawImage(img, innerX, innerY, innerW, innerH);
     } else {
-        // ❌ 没有图片 → 画世界地图
+        // ❌ 没有图片 → 绘制世界地图（地图本身有底色，保留原样）
         await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
     }
     ctx.restore();
 
-    // 第三步：白色粗描边
+    // 第三步：白色粗描边（覆盖在齿孔边缘）
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.strokeStyle = '#ffffff';
