@@ -1547,9 +1547,9 @@ body.is-mobile .share-modal { padding: 12px; }
 
 <script>
 (function() {
-    const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const script = document.createElement('script');
-    script.src = isMobile ? 'js/main.js' : 'js/main.min.js';
+    // 强制所有设备加载压缩版 main.min.js（排查手机 Chrome 问题）
+    var script = document.createElement('script');
+    script.src = 'js/main.min.js';
     script.async = false;
     document.head.appendChild(script);
 })();
