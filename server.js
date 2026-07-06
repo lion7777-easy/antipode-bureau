@@ -65,8 +65,50 @@ app.use('/api/admin', (req, res, next) => {
 });
 
 // 然后才是静态文件服务（注意：admin.html 已被上面的路由接管）
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'public')));
+// ===== 缓存策略配置 =====
+// 1. 静态资源（JS、CSS、图片、字体等）→ 强缓存 7 天
+app.use('/js', express.static(path.join(__dirname, 'public', 'js'), {
+    maxAge: '7d',
+    setHeaders: (res, path) => {
+        // main.js 和 main.min.js 单独控制：1小时缓存（便于调试）
+        if (path.endsWith('main.js') || path.endsWith('main.min.js')) {
+            res.setHeader('Cache-Control', 'public, max-age=3600'); // 1小时
+        }
+    }
+}));
+
+app.use('/images', express.static(path.join(__dirname, 'public', 'images'), {
+    maxAge: '7d'
+}));
+
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), {
+    maxAge: '7d'
+}));
+
+app.use('/data', express.static(path.join(__dirname, 'public', 'data'), {
+    maxAge: '7d'
+}));
+
+// 2. HTML 文件 → 协商缓存（每次都验证更新，否则 304）
+app.get('/index.html', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/admin.html', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/globe.html', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1小时缓存
+    res.sendFile(path.join(__dirname, 'public', 'globe.html'));
+});
+
+// 3. 其他静态资源（兜底）→ 7天缓存
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '7d'
+}));
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadsDir),
