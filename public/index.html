@@ -1553,7 +1553,7 @@ body.is-mobile .share-modal { padding: 12px; }
 
 <script>
 (function() {
-    // 强制所有设备加载压缩版 main.min.js（排查手机 Chrome 问题）
+    // 统一加载混淆版 main.min.js（所有设备）
     var script = document.createElement('script');
     script.src = 'js/main.min.js';
     script.async = false;
