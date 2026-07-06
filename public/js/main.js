@@ -1951,11 +1951,11 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
     ctx.restore();
 
-    // 齿口描边（白色锯齿边，更像邮票）
+// 齿口描边（白色锯齿边，更像邮票）
 ctx.save();
 drawStampPath(ctx, rx, ry, rw, rh);
 ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 1.5;          // 稍微加粗一点，让白色更明显
+ctx.lineWidth = 2.5;
 ctx.stroke();
 ctx.restore();
 }
