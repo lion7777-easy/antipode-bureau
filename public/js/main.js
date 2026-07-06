@@ -1583,16 +1583,16 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.fillRect(x + padding, y + padding, mapWidth, mapHeight);
     ctx.restore();
 
-    // ===== 新增：海洋纹理 =====
-    ctx.save();
-    for (var i = 0; i < 1200; i++) {
-        var xPos = x + padding + Math.random() * mapWidth;
-        var yPos = y + padding + Math.random() * mapHeight;
-        var alpha = Math.random() * 0.03;
-        ctx.fillStyle = 'rgba(180, 170, 160, ' + alpha + ')';
-        ctx.fillRect(xPos, yPos, 1 + Math.random() * 2, 1 + Math.random() * 2);
-    }
-    ctx.restore();
+   // ===== 新增：海洋纹理（更明显） =====
+ctx.save();
+for (var i = 0; i < 1200; i++) {
+    var xPos = x + padding + Math.random() * mapWidth;
+    var yPos = y + padding + Math.random() * mapHeight;
+    var alpha = Math.random() * 0.06;          // 提高透明度
+    ctx.fillStyle = 'rgba(180, 170, 160, ' + alpha + ')';
+    ctx.fillRect(xPos, yPos, 1 + Math.random() * 2, 1 + Math.random() * 2);
+}
+ctx.restore();
 
     // 8. 绘制大陆（填充 + 描边）
     ctx.save();
@@ -1663,19 +1663,18 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.stroke();
     ctx.restore();
 
-    // ===== 新增：陆地噪点 =====
-    ctx.save();
-    // 用矩形裁剪限制噪点范围到地图区域内
-    ctx.beginPath();
-    ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
-    ctx.clip();
-    for (var j = 0; j < 1500; j++) {
-        var px = x + padding + Math.random() * mapWidth;
-        var py = y + padding + Math.random() * mapHeight;
-        ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.05) + ')';
-        ctx.fillRect(px, py, 1, 1);
-    }
-    ctx.restore();
+    // ===== 新增：陆地噪点（更明显） =====
+ctx.save();
+ctx.beginPath();
+ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
+ctx.clip();
+for (var j = 0; j < 1500; j++) {
+    var px = x + padding + Math.random() * mapWidth;
+    var py = y + padding + Math.random() * mapHeight;
+    ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.10) + ')'; // 提高透明度
+    ctx.fillRect(px, py, 1, 1);
+}
+ctx.restore();
 
     // ===== 新增：赤道 + 回归线 =====
     ctx.save();
@@ -1699,12 +1698,12 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.stroke();
     ctx.restore();
 
-    // ===== 新增：经纬网（极淡、稀疏） =====
-    ctx.save();
-    ctx.setLineDash([2, 8]);
-    ctx.lineWidth = 0.5;
-    ctx.strokeStyle = 'rgba(120, 100, 80, 0.06)';
-    ctx.beginPath();
+   // ===== 新增：经纬网（加深） =====
+ctx.save();
+ctx.setLineDash([2, 8]);
+ctx.lineWidth = 1.0;
+ctx.strokeStyle = 'rgba(120, 100, 80, 0.30)';
+ctx.beginPath();
 
     // 经线：-60°, 0°, 60°, 120°
     var longitudes = [-60, 0, 60, 120];
@@ -1956,14 +1955,12 @@ const x1 = 24;
 const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
 const padding = 16;
-
-async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0) {
+async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0, img = null) {
     const rx = x;
     const ry = y;
     const rw = size;
     const rh = size;
 
-    // 第一步：绘制白色邮票底
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur = 10;
@@ -1974,14 +1971,22 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.fill();
     ctx.restore();
 
-    // 第二步：裁剪并绘制地图内容
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.clip();
-    await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch, innerPadding);
+   if (img) {
+    // 图片四周留出内边距，露出白色边框和锯齿边缘
+    var pad = 12;  // 与地图的内边距保持一致
+    var imgX = rx + pad;
+    var imgY = ry + pad;
+    var imgW = rw - pad * 2;
+    var imgH = rh - pad * 2;
+    ctx.drawImage(img, imgX, imgY, imgW, imgH);
+    } else {
+        await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch, innerPadding);
+    }
     ctx.restore();
 
-    // 第三步：白色粗描边
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.strokeStyle = '#ffffff';
@@ -1989,7 +1994,6 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.stroke();
     ctx.restore();
 
-    // 第四步：极浅外阴影
     ctx.save();
     drawStampPath(ctx, rx + 0.5, ry + 0.5, rw, rh);
     ctx.strokeStyle = 'rgba(0,0,0,0.06)';
@@ -1997,21 +2001,22 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.stroke();
     ctx.restore();
 }
-
-// 左侧邮票：只显示原始位置（橙色）
+// 左侧邮票（传入 originImg）
 await drawStampWithMap(ctx, x1, y, imgWidth,
     { lat: city.lat, lng: city.lng },
     null,
     true,
-    10   // ← innerPadding
+    8,
+    originImg
 );
 
-// 右侧邮票：只显示对跖点（蓝色）
+// 右侧邮票（传入 antipodeImg）
 await drawStampWithMap(ctx, x2, y, imgWidth,
     null,
     { lat: antiLat, lng: antiLng },
     true,
-    10   // ← innerPadding
+    8,
+    antipodeImg
 );
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
