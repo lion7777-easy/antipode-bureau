@@ -1796,54 +1796,72 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
     const imgHeight = imgWidth;
     const imgY = topMargin + 30;
 
-    // ---- 3a. 加载地图图片 ----
+       // ---- 3a. 加载地图图片 ----
     let originImg = null;
     let antipodeImg = null;
 
-    if (city.origin_image) originImg = await loadImage(city.origin_image);
-    if (city.antipode_image) antipodeImg = await loadImage(city.antipode_image);
-
-      // ===== 修改后（前端直连 + 缓存） =====
-if (!originImg && city.lat && city.lng) {
-    const size = Math.round(imgWidth);
-   const cacheKey = `staticmap_proxy_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-        try {
-            originImg = await loadImage(cached);
-        } catch (e) {
-            console.warn('缓存图片加载失败，重新请求');
+    // ✅ 方案三：有数据库图片 → 直接使用，绝不回退到 OSM
+    if (city.origin_image) {
+        originImg = await loadImage(city.origin_image);
+        if (!originImg) {
+            console.warn('⚠️ 地标图加载失败:', city.origin_image);
         }
     }
- if (!originImg) {
-    const url = `/api/osm-staticmap?lat=${city.lat}&lng=${city.lng}&size=${size}&zoom=8`;
-    originImg = await loadImageWithCache(url, cacheKey);
-}
-}
-
-// 对跖点坐标计算（独立于上面的 if）
-let antiLat = city.antipode_lat;
-let antiLng = city.antipode_lng;
-if (!antiLat || !antiLng) {
-    const anti = calculateAntipode(city.lat, city.lng);
-    antiLat = anti.lat;
-    antiLng = anti.lng;
-} // ← 这里必须闭合 if (!antiLat || !antiLng)
-
-if (!antipodeImg && antiLat && antiLng) {
-    const size = Math.round(imgWidth);
-    const cacheKey = `staticmap_osm_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-        try {
-            antipodeImg = await loadImage(cached);
-        } catch (e) {}
+    if (city.antipode_image) {
+        antipodeImg = await loadImage(city.antipode_image);
+        if (!antipodeImg) {
+            console.warn('⚠️ 对跖点图加载失败:', city.antipode_image);
+        }
     }
-    if (!antipodeImg) {
-    const url = `/api/osm-staticmap?lat=${antiLat}&lng=${antiLng}&size=${size}&zoom=8`;
-    antipodeImg = await loadImageWithCache(url, cacheKey);
-}
-}
+
+    // ✅ 只有完全没有数据库图片时，才使用 OSM 静态地图作为备选
+    // 注意：此逻辑仅对"非数据库城市"（如用户输入的临时地名）生效
+    if (!city.origin_image && !city.antipode_image && city.lat && city.lng) {
+        const size = Math.round(imgWidth);
+        const cacheKey = `staticmap_proxy_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                originImg = await loadImage(cached);
+            } catch (e) {
+                console.warn('缓存图片加载失败，重新请求');
+            }
+        }
+        if (!originImg) {
+            const url = `/api/osm-staticmap?lat=${city.lat}&lng=${city.lng}&size=${size}&zoom=8`;
+            originImg = await loadImageWithCache(url, cacheKey);
+        }
+
+        // 对跖点坐标计算
+        let antiLat = city.antipode_lat;
+        let antiLng = city.antipode_lng;
+        if (!antiLat || !antiLng) {
+            const anti = calculateAntipode(city.lat, city.lng);
+            antiLat = anti.lat;
+            antiLng = anti.lng;
+        }
+
+        const antiCacheKey = `staticmap_osm_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
+        const antiCached = localStorage.getItem(antiCacheKey);
+        if (antiCached) {
+            try {
+                antipodeImg = await loadImage(antiCached);
+            } catch (e) {}
+        }
+        if (!antipodeImg) {
+            const url = `/api/osm-staticmap?lat=${antiLat}&lng=${antiLng}&size=${size}&zoom=8`;
+            antipodeImg = await loadImageWithCache(url, antiCacheKey);
+        }
+    }
+
+    // 对跖点坐标计算（供后续使用）
+    let antiLat = city.antipode_lat;
+    let antiLng = city.antipode_lng;
+    if (!antiLat || !antiLng) {
+        const anti = calculateAntipode(city.lat, city.lng);
+        antiLat = anti.lat;
+        antiLng = anti.lng;
+    }
 
          // ---- 3b. 地图标签 + 经纬度 ----
     const originCoordText = formatCoord(city.lat, city.lng);
@@ -1926,38 +1944,45 @@ const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
 const padding = 16;
 
-/// 辅助函数：绘制单个带齿口的邮票
 async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false) {
     const rx = x;
     const ry = y;
     const rw = size;
     const rh = size;
 
-    // 绘制齿口背景（羊皮纸色底）
+    // ===== 第一步：绘制白色邮票底（整个齿孔区域） =====
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(0,0,0,0.12)';
+    ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 4;
-    ctx.fillStyle = '#e8dcc8';   // 复古羊皮纸底色
+    ctx.fillStyle = '#ffffff';   // ← 白色底
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.fill();
     ctx.restore();
 
-    // 裁剪到齿口内部，绘制地图内容
+    // ===== 第二步：裁剪并绘制地图内容 =====
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.clip();
     await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
     ctx.restore();
 
-// 齿口描边（白色锯齿边，更像邮票）
-ctx.save();
-drawStampPath(ctx, rx, ry, rw, rh);
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 2.5;
-ctx.stroke();
-ctx.restore();
+    // ===== 第三步：绘制白色粗描边（覆盖在地图之上） =====
+    ctx.save();
+    drawStampPath(ctx, rx, ry, rw, rh);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3.0;          // 加粗，确保明显
+    ctx.stroke();
+    ctx.restore();
+
+    // ===== 第四步：绘制齿孔外边缘的浅阴影（增加立体感） =====
+    ctx.save();
+    drawStampPath(ctx, rx + 0.5, ry + 0.5, rw, rh);
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
 }
 
 // 绘制两张邮票
