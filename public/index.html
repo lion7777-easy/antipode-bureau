@@ -1148,46 +1148,46 @@ body.is-mobile .share-modal { padding: 12px; }
 .controls {
     display: flex;
     flex-wrap: nowrap;
-    gap: 6px;
-    padding: 6px 8px;
+    gap: 8px;
+    padding: 6px 10px;
     position: relative;
     left: -4px !important;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     align-items: center;
+    justify-content: flex-start;  /* 左对齐 */
 }
 .controls .search-box {
-    flex: 1 1 auto;
+    flex: 0 1 auto;              /* 不拉伸，保持内容宽度 */
     min-width: 0;
-    max-width: 60%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 .controls .search-box input {
-    font-size: 13px;
-    padding: 6px 10px;
-    height: 36px;
+    font-size: 14px;
+    padding: 8px 12px;
     min-height: 36px;
-    width: 100%;
-    min-width: 0;
+    width: 160px;                /* 固定宽度，而不是100% */
+    flex-shrink: 0;
 }
 .controls .search-box input::placeholder {
-    font-size: 12px;
-    opacity: 0.8;
+    font-size: 11px;
+    opacity: 0.7;
 }
 .controls .search-box button {
-    font-size: 12px;
-    padding: 0 12px;
+    padding: 0 14px;
     height: 36px;
+    font-size: 13px;
     flex-shrink: 0;
-    margin-left: 4px;
+    white-space: nowrap;
 }
 .controls .random-btn {
-    font-size: 12px;
-    padding: 0 12px;
-    height: 36px;
-    flex-shrink: 0;
     background: rgba(40, 152, 232, 0.15);
     border: 1px solid rgba(40, 152, 232, 0.1);
     color: rgba(245, 240, 232, 0.7);
+    flex-shrink: 0;
+    padding: 0 14px;
+    height: 36px;
+    font-size: 13px;
     transform: translateX(2px);
 }
 .controls .location-btn,
@@ -1382,7 +1382,7 @@ body.is-mobile .share-modal { padding: 12px; }
 </div>
         <div class="controls">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="输入地名（国外建议英文）" list="historyList">
+                <input type="text" id="searchInput" placeholder="国外地名建议英文" list="historyList">
                 <datalist id="historyList"></datalist>
                 <button id="searchBtn">🔍 搜索</button>
             </div>
