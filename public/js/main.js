@@ -1885,62 +1885,28 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
     const imgY = topMargin + 30;
 
        // ---- 3a. 加载地图图片 ----
-    let originImg = null;
-    let antipodeImg = null;
+let originImg = null;
+let antipodeImg = null;
 
-    // ✅ 方案三：有数据库图片 → 直接使用，绝不回退到 OSM
-    if (city.origin_image) {
-        originImg = await loadImage(city.origin_image);
-        if (!originImg) {
-            console.warn('⚠️ 地标图加载失败:', city.origin_image);
-        }
+// 有数据库图片 → 直接使用
+if (city.origin_image) {
+    originImg = await loadImage(city.origin_image);
+    if (!originImg) {
+        console.warn('⚠️ 地标图加载失败:', city.origin_image);
     }
-    if (city.antipode_image) {
-        antipodeImg = await loadImage(city.antipode_image);
-        if (!antipodeImg) {
-            console.warn('⚠️ 对跖点图加载失败:', city.antipode_image);
-        }
+}
+if (city.antipode_image) {
+    antipodeImg = await loadImage(city.antipode_image);
+    if (!antipodeImg) {
+        console.warn('⚠️ 对跖点图加载失败:', city.antipode_image);
     }
+}
 
-    // ✅ 只有完全没有数据库图片时，才使用 OSM 静态地图作为备选
-    // 注意：此逻辑仅对"非数据库城市"（如用户输入的临时地名）生效
-    if (!city.origin_image && !city.antipode_image && city.lat && city.lng) {
-        const size = Math.round(imgWidth);
-        const cacheKey = `staticmap_proxy_${city.lat.toFixed(4)}_${city.lng.toFixed(4)}_${size}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                originImg = await loadImage(cached);
-            } catch (e) {
-                console.warn('缓存图片加载失败，重新请求');
-            }
-        }
-        if (!originImg) {
-            const url = `/api/osm-staticmap?lat=${city.lat}&lng=${city.lng}&size=${size}&zoom=8`;
-            originImg = await loadImageWithCache(url, cacheKey);
-        }
-
-        // 对跖点坐标计算
-        let antiLat = city.antipode_lat;
-        let antiLng = city.antipode_lng;
-        if (!antiLat || !antiLng) {
-            const anti = calculateAntipode(city.lat, city.lng);
-            antiLat = anti.lat;
-            antiLng = anti.lng;
-        }
-
-        const antiCacheKey = `staticmap_osm_${antiLat.toFixed(4)}_${antiLng.toFixed(4)}_${size}`;
-        const antiCached = localStorage.getItem(antiCacheKey);
-        if (antiCached) {
-            try {
-                antipodeImg = await loadImage(antiCached);
-            } catch (e) {}
-        }
-        if (!antipodeImg) {
-            const url = `/api/osm-staticmap?lat=${antiLat}&lng=${antiLng}&size=${size}&zoom=8`;
-            antipodeImg = await loadImageWithCache(url, antiCacheKey);
-        }
-    }
+// 没有数据库图片 → 用 Canvas 绘制复古地图（不需要任何请求）
+if (!city.origin_image && !city.antipode_image) {
+    console.log('🖼️ 没有数据库图片，使用 Canvas 绘制复古地图');
+    // originImg 和 antipodeImg 保持 null，后续走 drawWorldMapContent
+}
 
     // 对跖点坐标计算（供后续使用）
     let antiLat = city.antipode_lat;
