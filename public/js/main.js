@@ -1971,9 +1971,17 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.fill();
     ctx.restore();
 
-    // ===== 第二步：计算内部矩形区域（花边宽度 = 尺寸的 20%） =====
-    // 用 20% 让花边更明显，之前 15% 可能不够
-    var margin = size * 0.08;
+    // ===== 第二步：计算内部矩形区域 =====
+// ⬇️ 在这里修改：根据是否有图片，使用不同的边距值
+var margin;
+if (img) {
+    // 有图片：白边 8%（图片没有内部边距）
+    margin = size * 0.08;
+} else {
+    // 没有图片（地图）：白边 4%，加上 drawWorldMapContent 内部的 6%
+    // 总白边 ≈ 4% + 6% = 10%，与图片的 8% 接近
+    margin = size * 0.04;
+}
 console.warn('🟢 当前 margin 值:', margin);
     var rectX = rx + margin;
     var rectY = ry + margin;
