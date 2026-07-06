@@ -2306,7 +2306,6 @@ async function loadImageWithCache(url, cacheKey) {
         img.src = src;
     });
 }
-
         function roundRect(ctx, x, y, w, h, r) {
             ctx.beginPath();
             ctx.moveTo(x + r, y);
