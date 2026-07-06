@@ -1961,6 +1961,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     const rw = size;
     const rh = size;
 
+    // ===== 第一步：绘制白色齿孔背景（含锯齿） =====
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur = 10;
@@ -1971,22 +1972,33 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.fill();
     ctx.restore();
 
-    ctx.save();
-    drawStampPath(ctx, rx, ry, rw, rh);
-    ctx.clip();
-   if (img) {
-    // 图片四周留出内边距，露出白色边框和锯齿边缘
-    var pad = 24;  // 与地图的内边距保持一致
-    var imgX = rx + pad;
-    var imgY = ry + pad;
-    var imgW = rw - pad * 2;
-    var imgH = rh - pad * 2;
-    ctx.drawImage(img, imgX, imgY, imgW, imgH);
-    } else {
-        await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch, innerPadding);
-    }
-    ctx.restore();
+    // ===== 第二步：计算内部矩形区域（用于图片/地图，以及白色花边） =====
+    // 花边宽度 = 邮票尺寸的 15%（让白色花边明显）
+    var margin = size * 0.15;
+    var rectX = rx + margin;
+    var rectY = ry + margin;
+    var rectW = rw - margin * 2;
+    var rectH = rh - margin * 2;
 
+    // ===== 第三步：在矩形区域内绘制图片或地图 =====
+    if (img) {
+        // 有图片 → 绘制矩形图片（不会被锯齿裁剪）
+        ctx.save();
+        ctx.drawImage(img, rectX, rectY, rectW, rectH);
+        ctx.restore();
+    } else {
+        // 没有图片 → 在矩形区域内绘制世界地图
+        ctx.save();
+        // 使用矩形裁剪（不是锯齿裁剪），让地图在矩形内显示
+        ctx.beginPath();
+        ctx.rect(rectX, rectY, rectW, rectH);
+        ctx.clip();
+        // 调整 drawWorldMapContent 的坐标，使其绘制在矩形区域内
+        await drawWorldMapContent(ctx, rectX, rectY, rectW, originCoord, antipodeCoord, stretch, innerPadding);
+        ctx.restore();
+    }
+
+    // ===== 第四步：绘制白色锯齿描边（强化锯齿边缘） =====
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.strokeStyle = '#ffffff';
@@ -1994,6 +2006,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.stroke();
     ctx.restore();
 
+    // ===== 第五步：极浅外阴影 =====
     ctx.save();
     drawStampPath(ctx, rx + 0.5, ry + 0.5, rw, rh);
     ctx.strokeStyle = 'rgba(0,0,0,0.06)';
