@@ -2888,26 +2888,44 @@ function initApp() {
             .then(data => { worldMapData = data; })
             .catch(() => { console.warn('预加载 GeoJSON 失败，分享卡生成时会重试'); });
     }
-    // ===== 太阳/月亮切换（Cesium 版本） =====
-    const dayNightToggle = document.getElementById('dayNightToggle');
-    const sunIcon = document.getElementById('sunIcon');
-    const moonIcon = document.getElementById('moonIcon');
+    // ===== 太阳/月亮切换（同时支持 Cesium 和 Three.js） =====
+const dayNightToggle = document.getElementById('dayNightToggle');
+const sunIcon = document.getElementById('sunIcon');
+const moonIcon = document.getElementById('moonIcon');
 
-    if (dayNightToggle) {
-        dayNightToggle.addEventListener('click', function() {
-            const isNight = sunIcon.style.display !== 'none';
-            const newMode = isNight;
-            sunIcon.style.display = isNight ? 'none' : 'block';
-            moonIcon.style.display = isNight ? 'block' : 'none';
-            this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
-            if (window.__toggleCesiumDayNight) {
-                window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
-                console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
-            } else {
-                console.warn('Cesium 未就绪，无法切换日夜');
-            }
-        });
-    }
+if (dayNightToggle) {
+    dayNightToggle.addEventListener('click', function() {
+        // 判断当前模式：太阳显示中 → 切换到夜间
+        const isNight = sunIcon.style.display !== 'none';
+        const newMode = isNight;
+        
+        // 切换图标
+        sunIcon.style.display = isNight ? 'none' : 'block';
+        moonIcon.style.display = isNight ? 'block' : 'none';
+        this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
+        
+        // 1. 如果是桌面端（Cesium 已加载），切换 Cesium
+        if (window.__toggleCesiumDayNight) {
+            window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
+            console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
+        }
+        
+        // 2. 如果是移动端（Three.js），向 globe.html 发送消息
+        const earthFrame = document.getElementById('earthFrame');
+        if (earthFrame && earthFrame.contentWindow) {
+            earthFrame.contentWindow.postMessage({
+                type: 'toggle-day-night',
+                isNightMode: newMode
+            }, '*');
+            console.log(`🌓 Three.js 切换至 ${newMode ? '夜间' : '日间'}`);
+        }
+        
+        // 3. 兜底：如果两者都不存在，仅切换图标（但这种情况不应该发生）
+        if (!window.__toggleCesiumDayNight && !earthFrame) {
+            console.warn('⚠️ 没有可用的地球引擎，仅切换图标');
+        }
+    });
+}
 
     // 高德地图加载
     window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY };
