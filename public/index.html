@@ -1144,50 +1144,56 @@ body.is-mobile .share-modal { padding: 12px; }
     .header .brand-en { font-size: 0.6rem; letter-spacing: 2px; }
     .header .sub { font-size: 0.65rem; }
 
-       /* ===== 3. 搜索栏简化 ===== */
-    .controls {
-        padding: 6px 10px;
-        gap: 14px;
-        flex-wrap: nowrap;
-        position: relative;
-        left: -4px !important;   /* 再左移7px，总计左移11px */
-    }
-    .controls .location-btn,
-    .controls .ranking-btn {
-        display: none !important;
-    }
-    .controls .random-btn {
-        background: rgba(40, 152, 232, 0.15);
-        border: 1px solid rgba(40, 152, 232, 0.1);
-        color: rgba(245, 240, 232, 0.7);
-        flex-shrink: 0;
-        padding: 0 14px;
-        height: 40px;
-        font-size: 13px;
-        transform: translateX(5px);
-    }
-    .search-box {
-        flex: 1 1 auto;
-        min-width: 0;
-        transform: translateX(-4px);  /* 新增：整体向左移动2px */
-
-    }
-    .search-box input {
-        font-size: 14px;
-        padding: 8px 14px;
-        min-height: 40px;
-    }
-    .search-box input::placeholder {
-        font-size: 12px;
-        opacity: 0.8;
-    }
-       .search-box button {
-        padding: 0 14px;
-        height: 40px;
-        font-size: 13px;
-        flex-shrink: 0;
-        margin-left: 6px;  /* 新增：向右移动6px */
-    }
+      /* ===== 3. 搜索栏简化 ===== */
+.controls {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 6px 8px;
+    position: relative;
+    left: -4px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    align-items: center;
+}
+.controls .search-box {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 60%;
+}
+.controls .search-box input {
+    font-size: 13px;
+    padding: 6px 10px;
+    height: 36px;
+    min-height: 36px;
+    width: 100%;
+    min-width: 0;
+}
+.controls .search-box input::placeholder {
+    font-size: 12px;
+    opacity: 0.8;
+}
+.controls .search-box button {
+    font-size: 12px;
+    padding: 0 12px;
+    height: 36px;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+.controls .random-btn {
+    font-size: 12px;
+    padding: 0 12px;
+    height: 36px;
+    flex-shrink: 0;
+    background: rgba(40, 152, 232, 0.15);
+    border: 1px solid rgba(40, 152, 232, 0.1);
+    color: rgba(245, 240, 232, 0.7);
+    transform: translateX(2px);
+}
+.controls .location-btn,
+.controls .ranking-btn {
+    display: none !important;
+}
     /* ===== 4. 三栏变单列 ===== */
     .three-col {
         flex-direction: column;

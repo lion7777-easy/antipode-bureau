@@ -137,37 +137,37 @@ const nightMap = textureLoader.load('/images/earth_night.jpg',
         `;
 
         const fragmentShader = `
-            uniform sampler2D dayMap;
-            uniform sampler2D nightMap;
-            uniform vec3 lightDirection;
-            uniform float mixFactor;
+    uniform sampler2D dayMap;
+    uniform sampler2D nightMap;
+    uniform vec3 lightDirection;
 
-            varying vec3 vNormal;
-            varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec2 vUv;
 
-            void main() {
-                vec3 normal = normalize(vNormal);
-                vec3 lightDir = normalize(lightDirection);
-                float intensity = max(0.0, dot(normal, -lightDir));
-                
-                vec4 dayColor = texture2D(dayMap, vUv);
-                vec4 nightColor = texture2D(nightMap, vUv);
-                
-               // 日间纹理光照计算（进一步调亮）
-// 修改为（大幅提高环境光，降低漫反射依赖）
-float ambient = 1.4;      // 从 0.85 提升到 1.4，让暗部直接变亮
-float diffuse = max(0.0, dot(normal, -lightDir)) * 0.3; // 漫反射稍微降低，保留立体感
-float lighting = ambient + diffuse; // 范围约 1.4 ~ 1.7
-lighting = min(lighting, 1.5); // 放宽上限
-vec3 litDayColor = dayColor.rgb * lighting;
-                
-                float nightWeight = (1.0 - intensity) * mixFactor;
-                nightWeight = smoothstep(0.1, 0.6, nightWeight);
-                
-                vec4 finalColor = vec4(mix(litDayColor, nightColor.rgb, nightWeight), 1.0);
-                gl_FragColor = finalColor;
-            }
-        `;
+    void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 lightDir = normalize(lightDirection);
+        float intensity = max(0.0, dot(normal, -lightDir));
+        
+        vec4 dayColor = texture2D(dayMap, vUv);
+        vec4 nightColor = texture2D(nightMap, vUv);
+        
+        // 日间纹理光照计算
+        float ambient = 1.2;
+        float diffuse = max(0.0, dot(normal, -lightDir)) * 0.3;
+        float lighting = min(ambient + diffuse, 1.5);
+        vec3 litDayColor = dayColor.rgb * lighting;
+        
+        // ===== 核心修改：移除 mixFactor，基于光照强度计算夜景混合权重 =====
+        // 只有完全背光面（intensity < 0.3）才显示夜景
+        // 且最大混合权重限制为 0.7，保留部分日间纹理
+        float nightWeight = 1.0 - smoothstep(0.0, 0.5, intensity);
+        nightWeight = clamp(nightWeight, 0.0, 0.7);
+        
+        vec3 finalColor = mix(litDayColor, nightColor.rgb, nightWeight);
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+`;
 
         // 创建着色器材质
         const earthMaterial = new THREE.ShaderMaterial({
@@ -387,22 +387,21 @@ controls.update();
             updateDayNightMode(currentMode);
         }
 
-        // ===== 日夜切换函数 =====
-        function updateDayNightMode(isNight) {
-            currentMode = isNight;
-            earthMaterial.uniforms.mixFactor.value = isNight ? 0.5 : 0.0;
-            
-            if (isNight) {
-                ambientLight.intensity = 0.3;
-                dirLight.intensity = 0.8;
-                if (typeof fillLight !== 'undefined') fillLight.intensity = 0.1;
-            } else {
-                ambientLight.intensity = 0.8;
-                dirLight.intensity = 2.0;
-                if (typeof fillLight !== 'undefined') fillLight.intensity = 0.6;
-            }
-        }
-
+       // ===== 日夜切换函数 =====
+function updateDayNightMode(isNight) {
+    currentMode = isNight;
+    // 移除 mixFactor 的设置，因为着色器已不再使用它
+    
+    if (isNight) {
+        ambientLight.intensity = 0.25;
+        dirLight.intensity = 0.6;
+        if (typeof fillLight !== 'undefined') fillLight.intensity = 0.1;
+    } else {
+        ambientLight.intensity = 0.8;
+        dirLight.intensity = 2.0;
+        if (typeof fillLight !== 'undefined') fillLight.intensity = 0.6;
+    }
+}
         // 初始化为白昼
         updateDayNightMode(false);
 
