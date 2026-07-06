@@ -1944,39 +1944,44 @@ const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
 const padding = 16;
 
-async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false) {
-    const rx = x;
-    const ry = y;
-    const rw = size;
-    const rh = size;
+// 【新增】绘制单张邮票（优先显示图片，没有图片则画地图）
+async function drawStampWithImageOrMap(ctx, x, y, size, img, originCoord, antipodeCoord, stretch) {
+    const rx = x, ry = y, rw = size, rh = size;
 
-    // ===== 第一步：绘制白色邮票底（整个齿孔区域） =====
+    // 第一步：绘制白色邮票底
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 4;
-    ctx.fillStyle = '#ffffff';   // ← 白色底
+    ctx.fillStyle = '#ffffff';
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.fill();
     ctx.restore();
 
-    // ===== 第二步：裁剪并绘制地图内容 =====
+    // 第二步：裁剪并绘制内容
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.clip();
-    await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
+
+    if (img) {
+        // ✅ 有图片 → 图片铺满整个邮票
+        ctx.drawImage(img, rx, ry, rw, rh);
+    } else {
+        // ❌ 没有图片 → 画世界地图
+        await drawWorldMapContent(ctx, rx, ry, rw, originCoord, antipodeCoord, stretch);
+    }
     ctx.restore();
 
-    // ===== 第三步：绘制白色粗描边（覆盖在地图之上） =====
+    // 第三步：白色粗描边
     ctx.save();
     drawStampPath(ctx, rx, ry, rw, rh);
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3.0;          // 加粗，确保明显
+    ctx.lineWidth = 3.0;
     ctx.stroke();
     ctx.restore();
 
-    // ===== 第四步：绘制齿孔外边缘的浅阴影（增加立体感） =====
+    // 第四步：极浅外阴影
     ctx.save();
     drawStampPath(ctx, rx + 0.5, ry + 0.5, rw, rh);
     ctx.strokeStyle = 'rgba(0,0,0,0.06)';
@@ -1985,20 +1990,11 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
     ctx.restore();
 }
 
-// 绘制两张邮票
-// 左侧邮票：只显示原始位置（橙色）
-await drawStampWithMap(ctx, x1, y, imgWidth,
-    { lat: city.lat, lng: city.lng },
-    null,
-    true   // ← 新增 stretch = true
-);
+// 左侧邮票：优先 originImg
+await drawStampWithImageOrMap(ctx, x1, y, imgWidth, originImg, { lat: city.lat, lng: city.lng }, null, true);
 
-// 右侧邮票：只显示对跖点（蓝色）
-await drawStampWithMap(ctx, x2, y, imgWidth,
-    null,
-    { lat: antiLat, lng: antiLng },
-    true   // ← 新增 stretch = true
-);
+// 右侧邮票：优先 antipodeImg
+await drawStampWithImageOrMap(ctx, x2, y, imgWidth, antipodeImg, null, { lat: antiLat, lng: antiLng }, true);
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
         const stampImg = await loadImage('/images/stamp.png');
