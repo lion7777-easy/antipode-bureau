@@ -2292,13 +2292,20 @@ async function loadImageWithCache(url, cacheKey) {
     }
 }
         function loadImage(src) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = () => resolve(null);
-                img.src = src;
-            });
-        }
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            console.log('✅ 图片加载成功:', src);
+            resolve(img);
+        };
+        img.onerror = (e) => {
+            console.warn('❌ 图片加载失败:', src, e);
+            resolve(null);
+        };
+        img.src = src;
+    });
+}
 
         function roundRect(ctx, x, y, w, h, r) {
             ctx.beginPath();
