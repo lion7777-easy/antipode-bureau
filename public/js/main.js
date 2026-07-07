@@ -5,6 +5,63 @@ const TIANDITU_TK = '7da0bbd486e5a061e5329472bed5ba41';  // 你的浏览器端 K
 // ===== 搜索缓存（重复搜索同一城市秒开） =====
 const searchCache = new Map();
 
+// ============================================================
+// 预加载 GeoJSON 和背景图（提升分享卡生成速度）
+// ============================================================
+let worldMapData = null;          // 原全局变量，保留
+let worldMapDataPromise = null;   // 用于等待加载
+
+function ensureWorldMapData() {
+    if (worldMapData) return Promise.resolve(worldMapData);
+    if (worldMapDataPromise) return worldMapDataPromise;
+    worldMapDataPromise = fetch('/data/land-110m.geojson')
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(data => {
+            worldMapData = data;
+            return data;
+        })
+        .catch(err => {
+            console.warn('⚠️ GeoJSON 预加载失败:', err);
+            return null;
+        });
+    return worldMapDataPromise;
+}
+
+// 预加载背景图（存入内存缓存）
+const bgImageCache = {};
+const BG_LIST = [
+    '/images/share-bg/card01.png',
+    '/images/share-bg/card02.png',
+    '/images/share-bg/card03.png',
+    '/images/share-bg/card04.png'
+];
+
+function preloadBgImages() {
+    BG_LIST.forEach(src => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = src;
+        bgImageCache[src] = img;  // 即使未加载完，先存引用，后续可用
+        // 也可监听 onload，但不用等待
+    });
+}
+preloadBgImages(); // 立即执行
+
+// 同时预加载羊皮纸纹理（分享卡地图中使用）
+let parchmentTexture = null;
+(function preloadParchment() {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { parchmentTexture = img; };
+    img.src = '/images/parchment-texture.png';
+})();
+
+// 立即启动 GeoJSON 预加载（不阻塞）
+ensureWorldMapData();
+
 // ===== 个人日限（100次/天） =====
 function getTodayCount() {
     const today = new Date().toDateString();
@@ -1514,18 +1571,7 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
         }
     }
 
-    // 2. 加载羊皮纸纹理
-    if (!parchmentTexture) {
-        try {
-            const img = await loadImage('/images/parchment-texture.png');
-            if (img) {
-                parchmentTexture = img;
-                console.log('✅ 羊皮纸纹理加载成功');
-            }
-        } catch (e) {
-            console.warn('羊皮纸纹理加载失败，使用纯色', e);
-        }
-    }
+    // 2. 使用预加载的羊皮纸纹理（已在外部预加载，无需额外加载代码）
 
     // 3. 判断模式：左侧（原点）或右侧（对跖点）
     const isOriginMode = (originCoord && typeof originCoord.lat === 'number' && typeof originCoord.lng === 'number') &&
@@ -1583,16 +1629,16 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.fillRect(x + padding, y + padding, mapWidth, mapHeight);
     ctx.restore();
 
-   // ===== 新增：海洋纹理（更明显） =====
-ctx.save();
-for (var i = 0; i < 1200; i++) {
-    var xPos = x + padding + Math.random() * mapWidth;
-    var yPos = y + padding + Math.random() * mapHeight;
-    var alpha = Math.random() * 0.06;          // 提高透明度
-    ctx.fillStyle = 'rgba(180, 170, 160, ' + alpha + ')';
-    ctx.fillRect(xPos, yPos, 1 + Math.random() * 2, 1 + Math.random() * 2);
-}
-ctx.restore();
+    // 海洋纹理（更明显）
+    ctx.save();
+    for (var i = 0; i < 1200; i++) {
+        var xPos = x + padding + Math.random() * mapWidth;
+        var yPos = y + padding + Math.random() * mapHeight;
+        var alpha = Math.random() * 0.06;
+        ctx.fillStyle = 'rgba(180, 170, 160, ' + alpha + ')';
+        ctx.fillRect(xPos, yPos, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    ctx.restore();
 
     // 8. 绘制大陆（填充 + 描边）
     ctx.save();
@@ -1639,7 +1685,6 @@ ctx.restore();
     });
     ctx.closePath();
 
-    // ===== 改为：径向渐变填充 =====
     var grad = ctx.createRadialGradient(
         x + padding + mapWidth * 0.35,
         y + padding + mapHeight * 0.35,
@@ -1663,20 +1708,20 @@ ctx.restore();
     ctx.stroke();
     ctx.restore();
 
-    // ===== 新增：陆地噪点（更明显） =====
-ctx.save();
-ctx.beginPath();
-ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
-ctx.clip();
-for (var j = 0; j < 1500; j++) {
-    var px = x + padding + Math.random() * mapWidth;
-    var py = y + padding + Math.random() * mapHeight;
-    ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.10) + ')'; // 提高透明度
-    ctx.fillRect(px, py, 1, 1);
-}
-ctx.restore();
+    // 陆地噪点
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
+    ctx.clip();
+    for (var j = 0; j < 1500; j++) {
+        var px = x + padding + Math.random() * mapWidth;
+        var py = y + padding + Math.random() * mapHeight;
+        ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.10) + ')';
+        ctx.fillRect(px, py, 1, 1);
+    }
+    ctx.restore();
 
-    // ===== 新增：赤道 + 回归线 =====
+    // 赤道 + 回归线
     ctx.save();
     ctx.setLineDash([3, 6]);
     ctx.lineWidth = 0.8;
@@ -1698,14 +1743,13 @@ ctx.restore();
     ctx.stroke();
     ctx.restore();
 
-   // ===== 新增：经纬网（加深） =====
-ctx.save();
-ctx.setLineDash([2, 8]);
-ctx.lineWidth = 1.0;
-ctx.strokeStyle = 'rgba(120, 100, 80, 0.50)';
-ctx.beginPath();
+    // 经纬网（加深）
+    ctx.save();
+    ctx.setLineDash([2, 8]);
+    ctx.lineWidth = 1.0;
+    ctx.strokeStyle = 'rgba(120, 100, 80, 0.50)';
+    ctx.beginPath();
 
-    // 经线：-60°, 0°, 60°, 120°
     var longitudes = [-60, 0, 60, 120];
     longitudes.forEach(function(lng) {
         var pts = [];
@@ -1721,7 +1765,6 @@ ctx.beginPath();
         }
     });
 
-    // 纬线：-60°, -30°, 0°, 30°, 60°
     var latitudes = [-60, -30, 0, 30, 60];
     latitudes.forEach(function(lat) {
         var pos1 = project(lat, -170);
@@ -1733,7 +1776,7 @@ ctx.beginPath();
     ctx.stroke();
     ctx.restore();
 
-    // 9. 叠加羊皮纸纹理
+    // 9. 叠加羊皮纸纹理（使用预加载的 parchmentTexture）
     if (parchmentTexture) {
         ctx.save();
         ctx.beginPath();
@@ -1747,7 +1790,7 @@ ctx.beginPath();
         ctx.restore();
     }
 
-    // 10. 绘制标记点（改为水滴地标）
+    // 10. 绘制标记点（水滴地标）
     const points = [];
     if (isOriginMode && originCoord) {
         points.push({ coord: originCoord, color: '#e8923a' });
@@ -1772,13 +1815,15 @@ ctx.beginPath();
         ctx.fill();
         ctx.restore();
 
-        // 水滴地标（替代圆点）
+        // 水滴地标
         var size = 7;
         drawTeardropOnCanvas(ctx, dotX, dotY, color, size);
     });
 }
 
 async function generateShareCard(city) {
+// ===== 新增：确保 GeoJSON 已加载 =====
+    await ensureWorldMapData();
     if (!city) {
         alert('请先搜索一个城市');
         return;
@@ -1790,12 +1835,14 @@ async function generateShareCard(city) {
     canvas.width = W;
     canvas.height = H;
 
-    // ===== 1. 绘制底图 =====
-    let bgImage = null;
-    try {
-        const bgPath = getThemeBg(city);
+        // ===== 1. 绘制底图（使用预加载缓存） =====
+    const bgPath = getThemeBg(city);
+    let bgImage = bgImageCache[bgPath];
+    if (!bgImage || !bgImage.complete) {
+        // 如果缓存中没有或未加载完，降级为常规加载
         bgImage = await loadImage(bgPath);
-    } catch (e) {
+    }
+    if (!bgImage) {
         console.warn('底图加载失败，使用渐变背景');
     }
 
