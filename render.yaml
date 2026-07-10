@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: antipode-bureau
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_PASSWORD
+        value: Lion+123456？
