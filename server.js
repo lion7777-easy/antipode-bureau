@@ -1,13 +1,22 @@
 // ============================================================
 // 对跖点漫游局 - 后端服务器（图片直接存储于 cities 表）
 // ============================================================
+require('dotenv').config();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'your-secure-password-here';
+
+// 安全检查：如果密码还是默认值，直接退出
+if (ADMIN_PASSWORD === 'your-secure-password-here') {
+    console.error('❌ 安全风险：后台密码为默认值，请立即设置 ADMIN_PASSWORD 环境变量！');
+    process.exit(1);
+}
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-
+const cron = require('node-cron');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = 3000;
@@ -20,14 +29,46 @@ if (!fs.existsSync(uploadsDir)) {
 
 app.use(cors());
 app.use(express.json());
-// ===== 管理后台密码保护 =====
-// 从环境变量读取密码，若未设置则使用默认值（请务必在 Render 中设置）
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'your-secure-password-here';
-// ===== 新增日志，查看实际读取到的密码 =====
-console.log('🔐 ADMIN_PASSWORD 是否存在:', !!process.env.ADMIN_PASSWORD);
-console.log('🔐 ADMIN_PASSWORD 长度:', ADMIN_PASSWORD.length);
-console.log('🔐 ADMIN_PASSWORD 前2位:', ADMIN_PASSWORD.substring(0, 2));
-console.log('🔐 ADMIN_PASSWORD 后2位:', ADMIN_PASSWORD.substring(ADMIN_PASSWORD.length - 2));
+// ============================================================
+// ===== API 限流配置（防恶意请求） =====
+// ============================================================
+
+// 通用限流：每个 IP 每分钟最多 60 次请求
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 分钟
+    max: 60, // 每个 IP 1 分钟内最多 60 次请求
+    message: { error: '请求过于频繁，请稍后再试。' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// 搜索接口限流：更严格，每分钟 10 次
+const searchLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: { error: '搜索过于频繁，请稍后再试。' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// 天气相关接口限流：每分钟 30 次
+const weatherLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: { error: '请求过于频繁，请稍后再试。' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// 管理后台 API 限流：最严格，每分钟 5 次
+const adminLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    message: { error: '操作过于频繁，请稍后再试。' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 
 // 保护 admin.html 页面（使用 app.use 确保优先级）
 app.use('/admin.html', (req, res, next) => {
@@ -48,7 +89,7 @@ app.use('/admin.html', (req, res, next) => {
 });
 
 // 2. 保护所有 /api/admin/* 接口
-app.use('/api/admin', (req, res, next) => {
+app.use('/api/admin', adminLimiter, (req, res, next) => {
     const auth = req.headers.authorization;
     if (!auth) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
@@ -110,6 +151,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: '7d'
 }));
 
+
+// ===== 图片上传配置（含安全限制） =====
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadsDir),
     filename: (req, file, cb) => {
@@ -117,7 +160,23 @@ const storage = multer.diskStorage({
         cb(null, unique + path.extname(file.originalname));
     }
 });
-const upload = multer({ storage });
+
+// ✅ 在 upload 实例中增加安全限制
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB 上限
+    },
+    fileFilter: (req, file, cb) => {
+        // 只允许图片格式
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('只允许上传图片文件（JPEG、PNG、GIF、WebP、SVG）'));
+        }
+    }
+});
 
 function getDB() {
     return new sqlite3.Database(DB_PATH);
@@ -190,7 +249,7 @@ app.get('/api/cities/:id', (req, res) => {
 
 
 // ===== 搜索接口 =====
-app.get('/api/search', (req, res) => {
+app.get('/api/search',searchLimiter, (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
     const db = getDB();
@@ -307,7 +366,7 @@ const AMAP_KEY = 'd6846dea147b497922afd3f9b121b429';
 });
 
 // ===== 逆地理编码代理接口（天地图 + 双重兜底） =====
-app.get('/api/reverse-geocode', (req, res) => {
+app.get('/api/reverse-geocode',weatherLimiter, (req, res) => {
     const { lng, lat } = req.query;
     if (!lng || !lat) {
         return res.status(400).json({ error: '缺少经纬度参数' });
@@ -699,8 +758,17 @@ function getApproximateName(lat, lng) {
 
     return { name: '地球另一端', nameEn: 'The Other Side of the Earth' };
 }
-// 启动
+// ===== 数据库迁移 =====
 migrate();
+
+// ===== 数据库自动备份（每天凌晨 3 点） =====
+cron.schedule('0 3 * * *', () => {
+    const backupPath = path.join(__dirname, 'data', `antipode.db.backup.${Date.now()}`);
+    fs.copyFileSync(DB_PATH, backupPath);
+    console.log(`✅ 数据库备份完成: ${backupPath}`);
+});
+
+// ===== 启动服务器 =====
 app.listen(PORT, () => {
     console.log(`🚀 对跖点漫游局 服务器已启动`);
     console.log(`📍 http://localhost:${PORT}`);

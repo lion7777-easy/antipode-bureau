@@ -1,0 +1,886 @@
+Aargau
+Aberdeen
+Aberdeenshire
+Acre
+Agrigento
+Ain
+Aisne
+Aisén del General Carlos Ibáñez del Campo
+Alagoas
+Albacete
+Alessandria
+Alicante
+Allier
+Almería
+Alpes-Maritimes
+Alpes-de-Haute-Provence
+Alto Paraguay
+Alto Paraná
+Amambay
+Amapá
+Amazonas
+Ancona
+Anglesey
+Angus
+Anhui
+Antioquia
+Antipodes Islands
+Antofagasta
+Antrim
+Antwerp
+Anzoátegui
+Aoste
+Appenzell Ausserrhoden
+Appenzell Innerrhoden
+Apure
+Apurímac
+Aragua
+Arauca
+Ardennes
+Ards
+Ardèche
+Arequipa
+Arezzo
+Argyll and Bute
+Arica y Parinacota
+Ariège
+Armagh
+Artigas
+Ascoli Piceno
+Asti
+Asturias
+Asunción
+Atacama
+Atlántico
+Aube
+Auckland
+Auckland Islands
+Aude
+Australian Capital Territory
+Aveiro
+Avellino
+Aveyron
+Ayacucho
+Azores
+Azuay
+Badajoz
+Baden-Württemberg
+Bahia
+Baleares
+Ballymena
+Ballymoney
+Banbridge
+Barcelona
+Bari
+Barinas
+Barking and Dagenham
+Barletta-Andria Trani
+Barnet
+Barnsley
+Bas-Rhin
+Basel-Landschaft
+Basel-Stadt
+Bath and North East Somerset
+Bay of Plenty
+Bayern
+Bedford
+Beijing
+Beja
+Belfast
+Belluno
+Benevento
+Bergamo
+Berlin
+Bern
+Bexley
+Biella
+Birmingham
+Bizkaia
+Blackburn with Darwen
+Blackpool
+Blaenau Gwent
+Bogota
+Bolivar
+Bologna
+Bolton
+Bolívar
+Boquerón
+Bouches-du-Rhône
+Bournemouth
+Boyacá
+Bozen
+Bracknell Forest
+Bradford
+Braga
+Bragança
+Brandenburg
+Bremen
+Brent
+Brescia
+Bridgend
+Brighton and Hove
+Brindisi
+Bristol
+Bromley
+Brussels
+Buckinghamshire
+Buenos Aires
+Burgos
+Bury
+Bío-Bío
+Caaguazú
+Caazapá
+Caerphilly
+Cagliari
+Cajamarca
+Caldas
+Calderdale
+Callao
+Caltanissetta
+Calvados
+Cambridgeshire
+Camden
+Campbell Islands
+Campobasso
+Canelones
+Canindeyú
+Cantabria
+Cantal
+Canterbury
+Caquetá
+Carabobo
+Carbonia-Iglesias
+Carchi
+Cardiff
+Carlow
+Carmarthenshire
+Carrickfergus
+Casanare
+Caserta
+Castellón
+Castelo Branco
+Castlereagh
+Catamarca
+Catania
+Catanzaro
+Cauca
+Cavan
+Cañar
+Ceará
+Central
+Central Bedfordshire
+Ceredigion
+Cerro Largo
+Cesar
+Ceuta
+Chaco
+Charente
+Charente-Maritime
+Chatham Islands Territory
+Cher
+Cheshire East
+Cheshire West and Chester
+Chieti
+Chimborazo
+Chocó
+Chongqing
+Chubut
+Chuquisaca
+City
+Ciudad Real
+Ciudad de Buenos Aires
+Clackmannanshire
+Clare
+Cochabamba
+Coimbra
+Cojedes
+Coleraine
+Colonia
+Como
+Concepción
+Conwy
+Coquimbo
+Cordillera
+Cork
+Cornwall
+Corrientes
+Corrèze
+Corse-du-Sud
+Cosenza
+Cotopaxi
+Coventry
+Craigavon
+Cremona
+Creuse
+Crotene
+Croydon
+Cuenca
+Cumbria
+Cundinamarca
+Cuneo
+Cusco
+Cáceres
+Cádiz
+Córdoba
+Côte-d'Or
+Côtes-d'Armor
+Darlington
+Delta Amacuro
+Denbighshire
+Dependencias Federales
+Derby
+Derbyshire
+Derry
+Deux-Sèvres
+Devon
+Distrito Capital
+Distrito Federal
+Doncaster
+Donegal
+Dordogne
+Dorset
+Doubs
+Down
+Drenthe
+Drôme
+Dublin
+Dudley
+Dumfries and Galloway
+Dundee
+Dungannon
+Durazno
+Durham
+Dún Laoghaire–Rathdown
+Ealing
+East Ayrshire
+East Dunbartonshire
+East Flanders
+East Lothian
+East Renfrewshire
+East Riding of Yorkshire
+East Sussex
+Edinburgh
+Eilean Siar
+El Beni
+El Oro
+Enfield
+Enna
+Entre Ríos
+Esmeraldas
+Espírito Santo
+Essex
+Essonne
+Eure
+Eure-et-Loir
+Falcón
+Falkirk
+Faro
+Fermanagh
+Fermo
+Ferrara
+Fife
+Fingal
+Finistère
+Firenze
+Flemish Brabant
+Flevoland
+Flintshire
+Flores
+Florida
+Foggia
+Forlì-Cesena
+Formosa
+Fribourg
+Friesland
+Frosinone
+Fujian
+Galway
+Galápagos
+Gansu
+Gard
+Gateshead
+Gelderland
+Genova
+Genève
+Gerona
+Gers
+Gipuzkoa
+Gironde
+Gisborne District
+Glarus
+Glasgow
+Gloucestershire
+Goiás
+Gorizia
+Granada
+Graubünden
+Greenwich
+Groningen
+Grosseto
+Guadalajara
+Guadeloupe
+Guainía
+Guairá
+Guangdong
+Guangxi
+Guarda
+Guaviare
+Guayas
+Guizhou
+Guyane française
+Guárico
+Gwynedd
+Hackney
+Hainan
+Hainaut
+Halton
+Hamburg
+Hammersmith and Fulham
+Hampshire
+Haringey
+Harrow
+Hartlepool
+Haute-Corse
+Haute-Garonne
+Haute-Loire
+Haute-Marne
+Haute-Rhin
+Haute-Savoie
+Haute-Saône
+Haute-Vienne
+Hautes-Alpes
+Hautes-Pyrénées
+Hauts-de-Seine
+Havering
+Hawke's Bay
+Hebei
+Heilongjiang
+Henan
+Herefordshire
+Hertfordshire
+Hessen
+Highland
+Hillingdon
+Hounslow
+Huancavelica
+Hubei
+Huelva
+Huesca
+Huila
+Hunan
+Huánuco
+Hérault
+Ica
+Ille-et-Vilaine
+Imbabura
+Imperia
+Indre
+Indre-et-Loire
+Inner Mongol
+Inverclyde
+Isernia
+Isle of Wight
+Isles of Scilly
+Islington
+Isère
+Itapúa
+Jaén
+Jervis Bay Territory
+Jiangsu
+Jiangxi
+Jilin
+Jujuy
+Junín
+Jura
+Kensington and Chelsea
+Kent
+Kermadec Islands
+Kerry
+Kildare
+Kilkenny
+Kingston upon Hull
+Kingston upon Thames
+Kirklees
+Knowsley
+L'Aquila
+La Araucanía
+La Coruña
+La Guajira
+La Libertad
+La Pampa
+La Paz
+La Rioja
+La Réunion
+La Spezia
+Lambayeque
+Lambeth
+Lancashire
+Landes
+Laoighis
+Lara
+Larne
+Las Palmas
+Latina
+Lavalleja
+Lecce
+Lecco
+Leeds
+Leicester
+Leicestershire
+Leiria
+Leitrim
+Lewisham
+León
+Liaoning
+Libertador General Bernardo O'Higgins
+Liege
+Lima
+Lima Province
+Limavady
+Limburg
+Limerick
+Lincolnshire
+Lisboa
+Lisburn
+Liverpool
+Livorno
+Lodi
+Loir-et-Cher
+Loire
+Loire-Atlantique
+Loiret
+Loja
+Longford
+Lord Howe Island
+Loreto
+Los Lagos
+Los Rios
+Los Ríos
+Lot
+Lot-et-Garonne
+Louth
+Lozère
+Lucca
+Lucerne
+Lugo
+Luton
+Luxembourg
+Lérida
+Macerata
+Macquarie Island
+Madeira
+Madre de Dios
+Madrid
+Magallanes y Antártica Chilena
+Magdalena
+Magherafelt
+Maine-et-Loire
+Maldonado
+Manabi
+Manawatu-Wanganui
+Manche
+Manchester
+Mantova
+Maranhão
+Marlborough District
+Marne
+Martinique
+Massa-Carrara
+Matera
+Mato Grosso
+Mato Grosso do Sul
+Maule
+Mayenne
+Mayo
+Mayotte
+Meath
+Mecklenburg-Vorpommern
+Medio Campidano
+Medway
+Melilla
+Mendoza
+Merseyside
+Merthyr Tydfil
+Merton
+Messina
+Meta
+Meurthe-et-Moselle
+Meuse
+Mid Ulster
+Middlesbrough
+Midlothian
+Milano
+Milton Keynes
+Minas Gerais
+Miranda
+Misiones
+Modena
+Monagas
+Monaghan
+Monmouthshire
+Montevideo
+Monza e Brianza
+Moquegua
+Moray
+Morbihan
+Morona Santiago
+Moselle
+Moyle
+Murcia
+Málaga
+Mérida
+Namur
+Napo
+Napoli
+Nariño
+Navarra
+Neath Port Talbot
+Nelson City
+Neuchâtel
+Neuquén
+New South Wales
+Newcastle upon Tyne
+Newham
+Newport
+Newry and Mourne
+Newtownabbey
+Nidwalden
+Niedersachsen
+Ningxia
+Nièvre
+Noord-Brabant
+Noord-Holland
+Nord
+Nordrhein-Westfalen
+Norfolk
+Norte de Santander
+North Ayshire
+North Down
+North East Lincolnshire
+North Lanarkshire
+North Lincolnshire
+North Somerset
+North Tipperary
+North Tyneside
+North Yorkshire
+Northamptonshire
+Northern Territory
+Northland
+Northumberland
+Nottingham
+Nottinghamshire
+Novara
+Nueva Esparta
+Nuoro
+Obwalden
+Offaly
+Ogliastra
+Oise
+Olbia-Tempio
+Oldham
+Omagh
+Orellana
+Orense
+Oristrano
+Orkney
+Orne
+Oruro
+Otago
+Overijssel
+Oxfordshire
+Padova
+Palencia
+Palermo
+Pando
+Paracel Islands
+Paraguarí
+Paraná
+Paraíba
+Paris
+Parma
+Pará
+Pas-de-Calais
+Pasco
+Pastaza
+Pavia
+Paysandú
+Pembrokeshire
+Pernambuco
+Perthshire and Kinross
+Perugia
+Pesaro e Urbino
+Pescara
+Peterborough
+Piacenza
+Piauí
+Pichincha
+Pisa
+Pistoia
+Piura
+Plymouth
+Pontevedra
+Poole
+Pordenone
+Portalegre
+Porto
+Portsmouth
+Portuguesa
+Potenza
+Potosí
+Powys
+Prato
+Presidente Hayes
+Puno
+Putumayo
+Puy-de-Dôme
+Pyrénées-Atlantiques
+Pyrénées-Orientales
+Qinghai
+Queensland
+Quindío
+Ragusa
+Ravenna
+Reading
+Redbridge
+Redcar and Cleveland
+Reggio Calabria
+Reggio Emilia
+Región Metropolitana de Santiago
+Renfrewshire
+Rheinland-Pfalz
+Rhondda, Cynon, Taff
+Rhône
+Richmond upon Thames
+Rieti
+Rimini
+Rio Grande do Norte
+Rio Grande do Sul
+Rio de Janeiro
+Risaralda
+Rivera
+Rocha
+Rochdale
+Roma
+Rondônia
+Roraima
+Roscommon
+Rotherham
+Rovigo
+Royal Borough of Windsor and Maidenhead
+Rutland
+Río Negro
+Saarland
+Saba
+Sachsen
+Sachsen-Anhalt
+Salamanca
+Salerno
+Salford
+Salta
+Salto
+San Andrés y Providencia
+San José
+San Juan
+San Luis
+San Martín
+San Pedro
+Sandwell
+Sankt Gallen
+Santa Catarina
+Santa Cruz
+Santa Cruz de Tenerife
+Santa Elena
+Santa Fe
+Santander
+Santarém
+Santiago del Estero
+Santo Domingo de los Tsáchilas
+Sarthe
+Sassari
+Savoie
+Savona
+Saône-et-Loire
+Schaffhausen
+Schleswig-Holstein
+Schwyz
+Scottish Borders
+Sefton
+Segovia
+Seien-et-Marne
+Seine-Maritime
+Seine-Saint-Denis
+Sergipe
+Setúbal
+Sevilla
+Shaanxi
+Shandong
+Shanghai
+Shanxi
+Sheffield
+Shetland Islands
+Shropshire
+Sichuan
+Siena
+Siracusa
+Sligo
+Slough
+Solihull
+Solothurn
+Somerset
+Somme
+Sondrio
+Soria
+Soriano
+South Australia
+South Ayrshire
+South Dublin
+South Gloucestershire
+South Lanarkshire
+South Tipperary
+South Tyneside
+Southampton
+Southend-on-Sea
+Southland
+Southwark
+St. Eustatius
+Staffordshire
+Stirling
+Stockport
+Stockton-on-Tees
+Stoke-on-Trent
+Strabane
+Sucre
+Sucumbios
+Suffolk
+Sunderland
+Surrey
+Sutton
+Swansea
+Swindon
+São Paulo
+Tacna
+Tacuarembó
+Tameside
+Taranaki
+Taranto
+Tarapacá
+Tarija
+Tarn
+Tarn-et-Garonne
+Tarragona
+Tasman District
+Tasmania
+Telford and Wrekin
+Teramo
+Terni
+Territoire de Belfort
+Teruel
+The Snares
+Three Kings Islands
+Thurgau
+Thurrock
+Thüringen
+Tianjin
+Ticino
+Tierra del Fuego
+Tocantins
+Tokelau
+Toledo
+Tolima
+Torbay
+Torfaen
+Tower Hamlets
+Trafford
+Trapani
+Treinta y Tres
+Trento
+Treviso
+Trieste
+Trujillo
+Tucumán
+Tumbes
+Tungurahua
+Turin
+Táchira
+Ucayali
+Udine
+Uri
+Utrecht
+Val-d'Oise
+Val-de-Marne
+Valais
+Vale of Glamorgan
+Valencia
+Valladolid
+Valle del Cauca
+Valparaíso
+Var
+Varese
+Vargas
+Vaucluse
+Vaud
+Vaupés
+Vendée
+Venezia
+Verbano-Cusio-Ossola
+Vercelli
+Verona
+Viana do Castelo
+Vibo Valentia
+Vicenza
+Vichada
+Victoria
+Vienne
+Vila Real
+Viseu
+Viterbo
+Vosges
+Waikato
+Wakefield
+Walloon Brabant
+Walsall
+Waltham Forest
+Wandsworth
+Warrington
+Warwickshire
+Waterford
+Wellington
+West Berkshire
+West Coast
+West Dunbartonshire
+West Flanders
+West Lothian
+West Sussex
+Western Australia
+Westmeath
+Westminster
+Wexford
+Wicklow
+Wigan
+Wiltshire
+Wokingham
+Wolverhampton
+Worcestershire
+Wrexham
+Xinjiang
+Xizang
+Yaracuy
+Yonne
+York
+Yunnan
+Yvelines
+Zamora
+Zamora Chinchipe
+Zaragoza
+Zeeland
+Zhejiang
+Zug
+Zuid-Holland
+Zulia
+Zürich
+Álava
+Áncash
+Ávila
+Évora
+Ñeembucú
+Ñuble

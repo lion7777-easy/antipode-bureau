@@ -1,10 +1,547 @@
+
 const AMAP_KEY = 'd6846dea147b497922afd3f9b121b429';
-        const AMAP_SECURITY = '5ee76779d43d2d8a89961f61ee26c810';
+const AMAP_SECURITY = '5ee76779d43d2d8a89961f61ee26c810';
 // ===== 天地图配置 =====
-const TIANDITU_TK = '7da0bbd486e5a061e5329472bed5ba41';  // 你的浏览器端 Key
+const TIANDITU_TK = '7da0bbd486e5a061e5329472bed5ba41';
+
+// ================================================================
+// ===== 分享卡视觉主题配置 =====
+// ================================================================
+
+const VISUAL_THEMES = {
+    pampas: {
+        id: 'pampas',
+        name: '潘帕斯草原',
+        bgImage: '/images/share-bg/themes/theme_pampas.png',
+        landColor: '#A8B997',
+        seaColor: '#F2D9C5',
+        lineColor: '#C8B8A0',
+    },
+    andes: {
+        id: 'andes',
+        name: '安第斯山脉',
+        bgImage: '/images/share-bg/themes/theme_andes.png',
+        landColor: '#79A0B4',
+        seaColor: '#D8E2E8',
+        lineColor: '#B0C0D0',
+    },
+    patagonia: {
+        id: 'patagonia',
+        name: '巴塔哥尼亚',
+        bgImage: '/images/share-bg/themes/theme_patagonia.png',
+        landColor: '#79A0B4',
+        seaColor: '#E6F0F7',
+        lineColor: '#C0D0D8',
+    },
+    northernChile: {
+        id: 'northernChile',
+        name: '北智利沙漠',
+        bgImage: '/images/share-bg/themes/theme_northern_chile.png',
+        landColor: '#D97C5E',
+        seaColor: '#FAF5E6',
+        lineColor: '#D4B890',
+    },
+    // 太平洋海岸（暂时保留，未来可启用）
+    // pacificCoast: {
+    //     id: 'pacificCoast',
+    //     name: '太平洋海岸',
+    //     bgImage: '/images/share-bg/themes/theme_pacific_coast.png',
+    //     landColor: '#84A9C2',
+    //     seaColor: '#FCF6E9',
+    //     lineColor: '#B8C8D0',
+    // },
+    amazon: {
+        id: 'amazon',
+        name: '亚马孙雨林',
+        bgImage: '/images/share-bg/themes/theme_amazon.png',
+        landColor: '#83A879',
+        seaColor: '#D9E2D3',
+        lineColor: '#B8C8B0',
+    },
+    ocean: {
+        id: 'ocean',
+        name: '海洋',
+        bgImage: '/images/share-bg/themes/theme_ocean.png',
+        landColor: '#FFFFFF',
+        seaColor: '#63829C',
+        lineColor: '#A0B8C8',
+    }
+};
+
+/**
+ * 天气大区 → 视觉主题 映射函数
+ * @param {string} weatherZone - 天气大区名称（如 '中智利', '潘帕斯' 等）
+ * @returns {string} 视觉主题 ID
+ */
+function getVisualTheme(weatherZone) {
+    // ---- 先尝试直接匹配 id（如 'centralChile'） ----
+    const idMap = {
+        'northernChile': 'northernChile',
+        'centralChile': 'andes',
+        'southernChile': 'patagonia',
+        'pampas': 'pampas',
+        'mendoza': 'andes',
+        'patagonia': 'patagonia',
+        'amazon': 'amazon',       // 新增
+        'pacific': 'ocean',
+        'atlantic': 'ocean',
+        'indian': 'ocean',
+    };
+    if (idMap[weatherZone]) {
+        return idMap[weatherZone];
+    }
+    
+    // ---- 兜底：用中文名匹配 ----
+    const nameMap = {
+        '北智利': 'northernChile',
+        '中智利': 'andes',
+        '南智利': 'patagonia',
+        '潘帕斯': 'pampas',
+        '门多萨': 'andes',
+        '巴塔哥尼亚': 'patagonia',
+        '大西洋': 'ocean',
+        '太平洋': 'ocean',
+        '印度洋': 'ocean',
+        '非洲': 'fallback',
+        '欧洲': 'fallback',
+        '亚洲': 'fallback',
+        '大洋洲': 'fallback',
+    };
+    return nameMap[weatherZone] || 'fallback';
+}
+
 // ===== 搜索缓存（重复搜索同一城市秒开） =====
 const searchCache = new Map();
+// ================================================================
+// ===== 工具函数 =====
+// ================================================================
 
+// ---- 对跖点计算 ----
+function calculateAntipode(lat, lng) {
+    let antiLng = lng + 180;
+    if (antiLng > 180) antiLng -= 360;
+    return { lat: -lat, lng: antiLng };
+}
+// ================================================================
+// ===== 天气模块 =====
+// ================================================================
+
+// ---- 天气缓存 ----
+const WEATHER_CACHE_KEY = 'weatherCache';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 分钟
+
+function getWeatherCacheKey(lat, lng) {
+    const date = new Date().toISOString().slice(0, 10);
+    return `${lat.toFixed(4)}_${lng.toFixed(4)}_${date}`;
+}
+
+function getCachedWeather(lat, lng) {
+    try {
+        const cache = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || '{}');
+        const key = getWeatherCacheKey(lat, lng);
+        const entry = cache[key];
+        if (entry && Date.now() - entry.timestamp < CACHE_DURATION) {
+            return entry.data;
+        }
+        return null;
+    } catch { return null; }
+}
+
+function setCachedWeather(lat, lng, data) {
+    try {
+        const cache = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || '{}');
+        const key = getWeatherCacheKey(lat, lng);
+        cache[key] = { data, timestamp: Date.now() };
+        localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cache));
+    } catch {}
+}
+
+// ---- 获取天气 ----
+async function fetchWeather(lat, lng) {
+    // 1. 检查缓存
+    const cached = getCachedWeather(lat, lng);
+    if (cached) return cached;
+
+    // 2. 请求 API
+    try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&timezone=auto`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('天气请求失败');
+        const data = await response.json();
+        const weather = data.current_weather;
+        setCachedWeather(lat, lng, weather);
+        return weather;
+    } catch (e) {
+        console.warn('天气获取失败:', e);
+        return null;
+    }
+}
+
+// ---- 天气代码转文字和图标 ----
+function getWeatherInfo(weatherCode) {
+    const map = {
+        0: { text: '晴天', icon: '☀️' },
+        1: { text: '晴间多云', icon: '🌤️' },
+        2: { text: '多云', icon: '⛅' },
+        3: { text: '阴天', icon: '☁️' },
+        45: { text: '雾', icon: '🌫️' },
+        48: { text: '雾', icon: '🌫️' },
+        51: { text: '小毛毛雨', icon: '🌦️' },
+        53: { text: '毛毛雨', icon: '🌦️' },
+        55: { text: '大毛毛雨', icon: '🌧️' },
+        61: { text: '小雨', icon: '🌧️' },
+        63: { text: '中雨', icon: '🌧️' },
+        65: { text: '大雨', icon: '🌧️' },
+        71: { text: '小雪', icon: '❄️' },
+        73: { text: '中雪', icon: '❄️' },
+        75: { text: '大雪', icon: '❄️' },
+        80: { text: '阵雨', icon: '🌦️' },
+        81: { text: '中阵雨', icon: '🌧️' },
+        82: { text: '大阵雨', icon: '⛈️' },
+        95: { text: '雷暴', icon: '⛈️' },
+        96: { text: '雷暴', icon: '⛈️' },
+        99: { text: '雷暴', icon: '⛈️' },
+    };
+    return map[weatherCode] || { text: '未知', icon: '🌍' };
+}
+
+// ---- 获取两地天气 ----
+async function fetchBothWeather(originLat, originLng) {
+    const antipode = calculateAntipode(originLat, originLng);
+    const [originWeather, antipodeWeather] = await Promise.all([
+        fetchWeather(originLat, originLng),
+        fetchWeather(antipode.lat, antipode.lng)
+    ]);
+    return { originWeather, antipodeWeather, antiLat: antipode.lat, antiLng: antipode.lng };
+}
+
+// ---- 更新地图天气浮层 ----
+function updateWeatherFloating(originWeather, antipodeWeather) {
+    // 🔧 先清除所有旧浮层，避免残留（解决快速搜索时天气显示错乱）
+    document.querySelectorAll('.weather-floating').forEach(el => el.remove());
+    
+    // 原始位置地图
+    const originContainer = document.getElementById('originMap');
+    if (originContainer) {
+        // 移除旧浮层（保留以防万一）
+        const oldOrigin = originContainer.querySelector('.weather-floating');
+        
+        if (originWeather) {
+            const info = getWeatherInfo(originWeather.weathercode);
+            const el = document.createElement('div');
+            el.className = 'weather-floating show';
+            el.innerHTML = `${info.icon} <span class="temp">${Math.round(originWeather.temperature)}°C</span>`;
+            originContainer.style.position = 'relative';
+            originContainer.appendChild(el);
+        }
+    }
+    
+    // 对跖点地图
+    const antipodeContainer = document.getElementById('antipodeMap');
+    if (antipodeContainer) {
+        const oldAnti = antipodeContainer.querySelector('.weather-floating');
+        
+        if (antipodeWeather) {
+            const info = getWeatherInfo(antipodeWeather.weathercode);
+            const el = document.createElement('div');
+            el.className = 'weather-floating show';
+            el.innerHTML = `${info.icon} <span class="temp">${Math.round(antipodeWeather.temperature)}°C</span>`;
+            antipodeContainer.style.position = 'relative';
+            antipodeContainer.appendChild(el);
+        }
+    }
+}
+
+// ---- 生成天气对比文案（用于分享卡） ----
+function generateWeatherCaption(originWeather, antipodeWeather) {
+    if (!originWeather || !antipodeWeather) return null;
+    
+    const originInfo = getWeatherInfo(originWeather.weathercode);
+    const antiInfo = getWeatherInfo(antipodeWeather.weathercode);
+    const originTemp = Math.round(originWeather.temperature);
+    const antiTemp = Math.round(antipodeWeather.temperature);
+    
+    // 根据温差生成不同文案
+    const diff = Math.abs(originTemp - antiTemp);
+    let tone = '';
+    if (diff > 15) tone = '天壤之别';
+    else if (diff > 8) tone = '别样风情';
+    else if (diff > 3) tone = '微妙不同';
+    else tone = '同频呼吸';
+    
+    return {
+        originIcon: originInfo.icon,
+        antiIcon: antiInfo.icon,
+        originTemp,
+        antiTemp,
+        caption: `此刻，你这里 ${originInfo.icon} ${originTemp}°C，而地球另一端 ${antiInfo.icon} ${antiTemp}°C，${tone}。`,
+        simple: `${originInfo.icon} ${originTemp}°C  ↔  ${antiInfo.icon} ${antiTemp}°C`
+    };
+}
+
+// ================================================================
+// ===== 非数据库城市诗句系统（八大区 + 天气反差） =====
+// ================================================================
+
+let regionPoems = null;        // 大区通用短句
+let weatherContrasts = null;   // 天气反差文案
+
+// ---- 加载文案数据 ----
+async function loadPoemData() {
+    try {
+        const [regionRes, contrastRes] = await Promise.all([
+            fetch('/data/region_poems.json'),
+            fetch('/data/weather_contrasts.json')
+        ]);
+        regionPoems = await regionRes.json();
+        weatherContrasts = await contrastRes.json();
+        console.log('✅ 文案数据加载完成:', Object.keys(regionPoems).length, '个大区');
+    } catch (e) {
+        console.warn('⚠️ 文案数据加载失败，使用降级文案:', e.message);
+        // 降级：硬编码默认文案
+        regionPoems = getFallbackRegionPoems();
+        weatherContrasts = getFallbackWeatherContrasts();
+    }
+}
+
+// ---- 降级文案（当 JSON 加载失败时使用） ----
+function getFallbackRegionPoems() {
+    return {
+        northernChile: {
+            poems: [
+                { cn: '阿塔卡马的星空，正从地球另一端凝视着你。', en: 'The stars of Atacama are gazing at you from the far side of the earth.' }
+            ]
+        },
+        centralChile: {
+            poems: [
+                { cn: '安第斯的雪水，正流过你脚下这片土地的背面。', en: 'The snowmelt of the Andes is flowing on the other side of the earth beneath you.' }
+            ]
+        },
+        // ... 其他大区至少保留一条
+    };
+}
+
+function getFallbackWeatherContrasts() {
+    return {
+        northernChile: {
+            '晴→雨': { cn: '阿塔卡马的晴空，正从地心为你接住另一端的雨。', en: 'The clear sky of Atacama is catching the rain from the other side through the core.' }
+        }
+        // ... 至少保留一条
+    };
+}
+
+// ---- 获取天气类型标签（用于匹配反差文案） ----
+function getWeatherType(code) {
+    if (code === 0 || code === 1) return '晴';
+    if (code === 2 || code === 3) return '多云';
+    if (code === 45 || code === 48) return '雾';
+    if (code >= 51 && code <= 55) return '毛毛雨';
+    if (code >= 61 && code <= 65) return '雨';
+    if (code >= 71 && code <= 75) return '雪';   // ✅ 雪单独返回
+    if (code >= 80 && code <= 82) return '雨';
+    if (code >= 95 && code <= 99) return '雷暴';
+    return '未知';
+}
+
+// ---- 判断是否触发天气反差 ----
+function shouldTriggerWeatherContrast(originWeather, antipodeWeather) {
+    if (!originWeather || !antipodeWeather) return false;
+
+    const originType = getWeatherType(originWeather.weathercode);
+    const antiType = getWeatherType(antipodeWeather.weathercode);
+    const originTemp = Math.round(originWeather.temperature);
+    const antiTemp = Math.round(antipodeWeather.temperature);
+    const tempDiff = Math.abs(originTemp - antiTemp);
+
+    // ===== 第一类：天气类型强反差 =====
+ 
+   const isOriginSunny = ['晴'].includes(originType);
+const isAntiSunny = ['晴'].includes(antiType);  // 恢复这一行
+const isOriginRainy = ['雨', '雪', '雷暴'].includes(originType);
+const isAntiRainy = ['雨', '雪', '雷暴'].includes(antiType);
+
+if ((isOriginSunny && isAntiRainy) || (isOriginRainy && isAntiSunny)) {
+    return true;
+}
+
+    // 多云 ↔ 大雨/大雪/雷暴：弱触发（可选）
+    const isOriginCloudy = originType === '多云';
+    const isAntiCloudy = antiType === '多云';
+    
+    // 🔧 修复：分别取两侧天气码进行判断
+    const originCode = originWeather.weathercode;
+    const antiCode = antipodeWeather.weathercode;
+    const isOriginHeavyRain = [63, 65, 80, 81, 82].includes(originCode);
+    const isOriginHeavySnow = [73, 75].includes(originCode);
+    const isAntiHeavyRain = [63, 65, 80, 81, 82].includes(antiCode);
+    const isAntiHeavySnow = [73, 75].includes(antiCode);
+
+    // 条件1：原点多云 → 对跖点有大雨/大雪/雷暴
+    // 条件2：对跖点多云 → 原点有大雨/大雪/雷暴
+    if ((isOriginCloudy && (isAntiHeavyRain || isAntiHeavySnow || antiType === '雷暴')) ||
+        (isAntiCloudy && (isOriginHeavyRain || isOriginHeavySnow || originType === '雷暴'))) {
+        return true;
+    }
+
+  // ===== 第二类：温度强反差（收紧条件） =====
+// 条件 A：原点酷暑（>35℃），且比对跖点高至少 20℃
+if (originTemp > 35 && originTemp - antiTemp >= 20) {
+    return true;
+}
+// 条件 B：原点严寒（<5℃），且比对跖点低至少 20℃
+if (originTemp < 5 && antiTemp - originTemp >= 20) {
+    return true;
+}
+
+    return false;
+}
+
+// ---- 获取反差类型键名（用于匹配 weather_contrasts.json） ----
+function getContrastKey(originWeather, antipodeWeather) {
+    const originType = getWeatherType(originWeather.weathercode);
+    const antiType = getWeatherType(antipodeWeather.weathercode);
+    const originTemp = Math.round(originWeather.temperature);
+    const antiTemp = Math.round(antipodeWeather.temperature);
+
+    // ===== 第一优先：雪的强反差 =====
+    // 下雪→未下雪：原点下雪，对跖点不下雪
+    if (originType === '雪' && antiType !== '雪') {
+        return '下雪→未下雪';
+    }
+    // 未下雪→下雪：原点不下雪，对跖点下雪
+    if (originType !== '雪' && antiType === '雪') {
+        return '未下雪→下雪';
+    }
+
+    // ===== 第二优先：天气类型反差（晴/雨/雷暴等） =====
+    if (originType !== antiType) {
+        // 雨和雷暴统一归为"雨"
+        const oType = ['雨', '雷暴'].includes(originType) ? '雨' : originType;
+        const aType = ['雨', '雷暴'].includes(antiType) ? '雨' : antiType;
+        // 如果归一化后相同，不生成天气反差 key，让温度反差兜底
+        if (oType !== aType) {
+            return `${oType}→${aType}`;
+        }
+    }
+
+    // ===== 第三优先：温度强反差（≥12°C） =====
+    if (originTemp >= antiTemp + 12) {
+        return '高温→低温';
+    }
+    if (antiTemp >= originTemp + 12) {
+        return '低温→高温';
+    }
+
+    return null;
+}
+/**
+ * 应用天气反差到诗句（如果有触发）
+ * @param {Object} cityData - 城市数据对象（必须包含 lat, lng, poem, poem_en）
+ * @param {Object|null} originWeather - 原点天气
+ * @param {Object|null} antipodeWeather - 对跖点天气
+ * @returns {Object} { poemCN, poemEN }
+ */
+/**
+ * 应用天气反差到诗句（如果有触发）
+ * @param {Object} cityData - 城市数据对象（必须包含 lat, lng, poem, poem_en）
+ * @param {Object|null} originWeather - 原点天气
+ * @param {Object|null} antipodeWeather - 对跖点天气
+ * @returns {Object} { poemCN, poemEN }
+ */
+function applyWeatherPoem(cityData, originWeather, antipodeWeather) {
+    let poemCN = cityData.poem || DEFAULT_POEM_CN;
+    let poemEN = cityData.poem_en || DEFAULT_POEM_EN;
+
+    if (!originWeather || !antipodeWeather) {
+        return { poemCN, poemEN };
+    }
+
+    const shouldTrigger = shouldTriggerWeatherContrast(originWeather, antipodeWeather);
+    if (shouldTrigger) {
+        const anti = calculateAntipode(cityData.lat, cityData.lng);
+        // ✅ 改用 window.getRegion 获取大区ID，与 weatherContrasts 的键对齐
+        const regionInfo = window.getRegion ? window.getRegion(anti.lat, anti.lng) : null;
+        const regionId = regionInfo?.id || null;
+        const contrastKey = getContrastKey(originWeather, antipodeWeather);
+        
+        if (regionId && contrastKey && weatherContrasts && weatherContrasts[regionId] && weatherContrasts[regionId][contrastKey]) {
+            const match = weatherContrasts[regionId][contrastKey];
+            poemCN = match.cn;
+            poemEN = match.en;
+        } else if (contrastKey) {
+            console.warn(`⚠️ 未找到反差文案: 大区=${regionId}, key=${contrastKey}`);
+        }
+    }
+
+    return { poemCN, poemEN };
+}
+// ---- 主入口：获取非数据库城市的诗句 ----
+function getPoemForNonDbCity(cityName, originLat, originLng, originWeather, antipodeWeather) {
+    const anti = calculateAntipode(originLat, originLng);
+    
+    // ---- 获取大区信息（用于八大区通用短句） ----
+    const regionInfo = window.getRegion ? window.getRegion(anti.lat, anti.lng) : null;
+    
+    // ---- 获取国家信息（用于天气反差匹配） ----
+    const countryInfo = getAntipodeRegion(anti.lat, anti.lng);
+    const countryName = countryInfo?.country || null;
+    
+    if (!regionInfo && !countryName) {
+        return {
+        cn: DEFAULT_POEM_CN,
+        en: DEFAULT_POEM_EN
+    };
+    }
+
+    // 2. 判断是否触发天气反差
+    const shouldTrigger = shouldTriggerWeatherContrast(originWeather, antipodeWeather);
+
+        // 3. 如果有天气反差，尝试获取反差文案（使用大区ID匹配）
+    if (shouldTrigger) {
+        const contrastKey = getContrastKey(originWeather, antipodeWeather);
+        // ✅ 用 regionInfo.id 去匹配 weatherContrasts，而不是 countryName
+        if (contrastKey && weatherContrasts && regionInfo?.id && weatherContrasts[regionInfo.id] && weatherContrasts[regionInfo.id][contrastKey]) {
+            const match = weatherContrasts[regionInfo.id][contrastKey];
+            return { cn: `「${match.cn}」`, en: match.en };
+        }
+    }
+
+    // 4. 获取大区通用短句（使用 regionInfo.id 匹配 regionPoems）
+    if (regionInfo && regionInfo.id && regionPoems && regionPoems[regionInfo.id] && regionPoems[regionInfo.id].poems) {
+        const poems = regionPoems[regionInfo.id].poems;
+        const randomIndex = Math.floor(Math.random() * poems.length);
+        const selected = poems[randomIndex];
+        return { cn: `「${selected.cn}」`, en: selected.en };
+    }
+
+    // 5. 最终降级
+return {
+    cn: DEFAULT_POEM_CN,   // 「这一刻，你与地球背面，同频呼吸。」
+    en: DEFAULT_POEM_EN    // In this moment, you breathe in sync with the far side of the earth.
+};
+}
+// ============================================================
+// 长尾国家/地区兜底映射（覆盖玻利维亚、巴拉圭、乌拉圭等）
+// 当坐标无法匹配六大区时，根据国家名归入对应大区
+// ============================================================
+function getFallbackZoneByCountry(countryName) {
+    const map = {
+        '玻利维亚': 'andes',
+        '巴拉圭': 'pampas',
+        '乌拉圭': 'pampas',
+        '秘鲁': 'andes',
+        '厄瓜多尔': 'andes',
+        '哥伦比亚': 'amazon',
+        '委内瑞拉': 'amazon',
+        '圭亚那': 'amazon',
+        '苏里南': 'amazon',
+        '法属圭亚那': 'amazon',
+    };
+    return map[countryName] || null;
+}
+// 暴露到全局
+window.getPoemForNonDbCity = getPoemForNonDbCity;
+window.loadPoemData = loadPoemData;
 // ============================================================
 // 预加载 GeoJSON 和背景图（提升分享卡生成速度）
 // ============================================================
@@ -33,10 +570,17 @@ function ensureWorldMapData() {
 // 预加载背景图（存入内存缓存）
 const bgImageCache = {};
 const BG_LIST = [
-    '/images/share-bg/card01.png',
+   '/images/share-bg/card01.png',
     '/images/share-bg/card02.png',
     '/images/share-bg/card03.png',
-    '/images/share-bg/card04.png'
+    '/images/share-bg/card04.png',
+    '/images/share-bg/themes/theme_pampas.png',
+    '/images/share-bg/themes/theme_andes.png',
+    '/images/share-bg/themes/theme_patagonia.png',
+    '/images/share-bg/themes/theme_northern_chile.png',
+    // '/images/share-bg/themes/theme_pacific_coast.png',  // 已注释，暂不启用
+    '/images/share-bg/themes/theme_amazon.png',
+    '/images/share-bg/themes/theme_ocean.png'
 ];
 
 function preloadBgImages() {
@@ -524,6 +1068,17 @@ subEl.textContent = `📍 对跖点：${antipodeDisplay}`;                result
         function performRandomTravel(spot) {
             if (!spot) return;
             updateAll(spot.lat, spot.lng);
+    incrementTodayCount(); // ✅ 补上
+// ===== 🆕 获取天气 =====
+    (async function() {
+        const { originWeather, antipodeWeather } = await fetchBothWeather(spot.lat, spot.lng);
+        window._originWeather = originWeather;
+        window._antipodeWeather = antipodeWeather;
+        window._antiLat = calculateAntipode(spot.lat, spot.lng).lat;
+        window._antiLng = calculateAntipode(spot.lat, spot.lng).lng;
+        updateWeatherFloating(originWeather, antipodeWeather);
+    })();
+    
             addToHistory(spot.name);
             setTimeout(() => { showCityPopup(spot); }, 300);
         }
@@ -622,43 +1177,66 @@ function showCityPopup(spot) {
             const lngDir = lng >= 0 ? '°E' : '°W';
             return `${Math.abs(lat).toFixed(4)}${latDir}, ${Math.abs(lng).toFixed(4)}${lngDir}`;
         }
-// ===== 解析经纬度字符串（支持多种格式） =====
+// ===== 解析经纬度字符串（支持十进制度 + 度分秒） =====
 function parseCoordinate(input) {
     if (!input || typeof input !== 'string') return null;
     input = input.trim();
     // 按逗号或中文逗号或空格分割
     const parts = input.split(/[,，\s]+/).filter(s => s.length > 0);
     if (parts.length !== 2) return null;
+    
     const latStr = parts[0];
     const lngStr = parts[1];
     
-    // 用正则提取每个部分的数字和方向字母
-    const pattern = /^\s*([-+]?\d*\.?\d+)\s*[°度]?\s*([NSEWnsew])?\s*$/;
-    const latMatch = latStr.match(pattern);
-    const lngMatch = lngStr.match(pattern);
-    if (!latMatch || !lngMatch) return null;
+    // ---- 度分秒正则（如 "30°44'41\"N" 或 "30 44 41 N"） ----
+    const dmsPattern = /^\s*(\d+)\s*[°度]\s*(\d+)\s*['分]\s*(\d+\.?\d*)\s*["秒]?\s*([NSEWnsew])?\s*$/;
     
-    let lat = parseFloat(latMatch[1]);
-    let lng = parseFloat(lngMatch[1]);
-    const latDir = latMatch[2] ? latMatch[2].toUpperCase() : '';
-    const lngDir = lngMatch[2] ? lngMatch[2].toUpperCase() : '';
+    // ---- 十进制度正则（如 "30.7448°N"） ----
+    const decimalPattern = /^\s*([-+]?\d*\.?\d+)\s*[°度]?\s*([NSEWnsew])?\s*$/;
     
-    // 如果方向存在，则根据方向确定正负（忽略数字原有的符号）
-    if (latDir === 'S') lat = -Math.abs(lat);
-    else if (latDir === 'N') lat = Math.abs(lat);
-    // 如果方向不存在，保留原符号（可能已有负号）
-    if (lngDir === 'W') lng = -Math.abs(lng);
-    else if (lngDir === 'E') lng = Math.abs(lng);
+    // ---- 解析单个坐标（尝试度分秒 → 十进制度） ----
+    function parseSingleCoord(str) {
+        // 1. 尝试度分秒
+        const dmsMatch = str.match(dmsPattern);
+        if (dmsMatch) {
+            const deg = parseFloat(dmsMatch[1]);
+            const min = parseFloat(dmsMatch[2]);
+            const sec = parseFloat(dmsMatch[3]);
+            const dir = dmsMatch[4] ? dmsMatch[4].toUpperCase() : '';
+            let decimal = deg + min / 60 + sec / 3600;
+            if (dir === 'S' || dir === 'W') decimal = -decimal;
+            return { value: decimal, hasDir: !!dir };
+        }
+        // 2. 尝试十进制度
+        const decMatch = str.match(decimalPattern);
+        if (decMatch) {
+            let value = parseFloat(decMatch[1]);
+            const dir = decMatch[2] ? decMatch[2].toUpperCase() : '';
+            if (dir === 'S') value = -Math.abs(value);
+            else if (dir === 'N') value = Math.abs(value);
+            // 如果方向不存在，保留原符号（可能已有负号）
+            return { value: value, hasDir: !!dir };
+        }
+        return null;
+    }
+    
+    const latResult = parseSingleCoord(latStr);
+    const lngResult = parseSingleCoord(lngStr);
+    if (!latResult || !lngResult) return null;
+    
+    let lat = latResult.value;
+    let lng = lngResult.value;
+    
+    // ---- 方向修正（如果两个坐标都没有方向标识，保留原符号） ----
+    // 如果度分秒解析时已经通过方向处理了正负，此处不再重复处理
+    // 但如果解析结果没有方向，且数字本身带符号，则保留
+    // 对于度分秒格式，如果用户输入 "30 44 41" 且无方向，会丢失符号信息，此时我们保留原数字符号（但度分秒正数无法表达负值，所以通常不会出现）
+    // 这里不做额外处理，因为 parseSingleCoord 已处理
     
     // 验证范围
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
     return { lat, lng };
 }
-        function calculateAntipode(lat, lng) {
-            let antiLng = lng + 180;
-            if (antiLng > 180) antiLng -= 360;
-            return { lat: -lat, lng: antiLng };
-        }
 
         function createTeardropMarker(color) {
             var svg = `
@@ -704,10 +1282,7 @@ function parseCoordinate(input) {
             originMap.setCenter([originLng, originLat]);
             antipodeMap.setCenter([antipode.lng, antipode.lat]);
 
-            originMap.render();
-            antipodeMap.render();
-            originMap.resize();
-            antipodeMap.resize();
+          
 
             // 更新 Three.js 地球（移动端）
             sendToEarth(originLat, originLng);
@@ -775,36 +1350,147 @@ async function searchWithAmapDomestic(keyword) {
     }
 }
 // ===== 通用搜索成功处理 =====
-        async function handleSearchSuccess(lat, lng, keyword, cityData) {
-            // 1. 更新地图
-            updateAll(lat, lng);
+async function handleSearchSuccess(lat, lng, keyword, cityData, originWeather, antipodeWeather) {
+    // 1. 更新地图
+    updateAll(lat, lng);
 
-            // 2. 添加到历史
-            addToHistory(keyword);
+    // 2. 获取天气（如果已传入则直接使用，否则自行获取）
+    let finalOriginWeather = originWeather;
+    let finalAntipodeWeather = antipodeWeather;
+    let antiLat, antiLng;
 
-           // 3. 触发礼物（基于地理坐标，不依赖 gift_id）
-// 对于数据库城市，cityData 有完整信息；对于非数据库城市，传入一个包含名称的简单对象
-const cityObj = cityData || { name_cn: keyword };
-triggerGiftForLocation(lat, lng, cityObj);
+    if (originWeather && antipodeWeather) {
+        // 已传入天气数据，直接使用
+        const anti = calculateAntipode(lat, lng);
+        antiLat = anti.lat;
+        antiLng = anti.lng;
+        window._originWeather = originWeather;
+        window._antipodeWeather = antipodeWeather;
+        window._antiLat = antiLat;
+        window._antiLng = antiLng;
+        updateWeatherFloating(originWeather, antipodeWeather);
+    } else {
+        // 未传入天气数据，自行获取（兼容旧调用方式）
+        const weather = await fetchBothWeather(lat, lng);
+        finalOriginWeather = weather.originWeather;
+        finalAntipodeWeather = weather.antipodeWeather;
+        antiLat = weather.antiLat;
+        antiLng = weather.antiLng;
+        window._originWeather = finalOriginWeather;
+        window._antipodeWeather = finalAntipodeWeather;
+        window._antiLat = antiLat;
+        window._antiLng = antiLng;
+        updateWeatherFloating(finalOriginWeather, finalAntipodeWeather);
+    }
 
-            // 4. 存入缓存
-            const poemHTML = document.getElementById('poemDisplay').innerHTML;
-            searchCache.set(keyword.toLowerCase(), {
-                cityData: currentCityData,
-                lat: lat,
-                lng: lng,
-                poemHTML: poemHTML,
-                cityName: keyword,
-                giftData: { hasGift: true }   // 总是存在，用于触发逻辑（实际触发不依赖它）
-            });
+    // 3. 添加到历史
+    addToHistory(keyword);
 
-            // 5. 累加个人日限
-            incrementTodayCount();
-        }
+    // 4. 触发礼物
+    const cityObj = cityData || { name_cn: keyword };
+    triggerGiftForLocation(lat, lng, cityObj);
+
+    // 5. 存入缓存
+    const poemHTML = document.getElementById('poemDisplay').innerHTML;
+    searchCache.set(keyword.toLowerCase(), {
+        cityData: currentCityData,
+        lat: lat,
+        lng: lng,
+        cityName: keyword,
+        giftData: { hasGift: true }
+    });
+
+    // 6. 累加个人日限
+    incrementTodayCount();
+}
         let isSearching = false;
 
-        async function searchLocation(keyword, retryCount = 0) {
+/**
+ * 处理地理编码结果（高德/天地图/经纬度），统一构造数据并调用 handleSearchSuccess
+ * @param {number} lat - 纬度
+ * @param {number} lng - 经度
+ * @param {string} keyword - 用户输入的关键词
+ */
+async function processGeocodeResult(lat, lng, keyword) {
+    // 1. 计算对跖点
+    const anti = calculateAntipode(lat, lng);
+    
+    // 2. 获取天气
+    let originWeather = null, antipodeWeather = null;
+    try {
+        const weather = await fetchBothWeather(lat, lng);
+        originWeather = weather.originWeather;
+        antipodeWeather = weather.antipodeWeather;
+        window._originWeather = originWeather;
+        window._antipodeWeather = antipodeWeather;
+        window._antiLat = anti.lat;
+        window._antiLng = anti.lng;
+    } catch (e) {
+        console.warn('天气获取失败:', e);
+    }
+    
+    // 3. 获取对跖点名称
+    let antipodeName = '地球另一端';
+    let antipodeNameEn = '';
+    try {
+        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.success && geoData.name) {
+            antipodeName = geoData.name;
+            antipodeNameEn = geoData.nameEn || '';
+        }
+    } catch (e) {
+        console.warn('获取对跖点名称失败:', e);
+    }
+    
+    // 4. 获取拼音（仅中文）
+    let nameEn = keyword;
+    if (/[\u4e00-\u9fa5]/.test(keyword)) {
+        try {
+            const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(keyword)}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            const pinyinData = await pinyinRes.json();
+            if (pinyinData.success) {
+                nameEn = pinyinData.pinyin;
+            }
+        } catch (e) {
+            console.warn('拼音获取失败:', e);
+        }
+    }
+    
+    // 5. 获取诗句（传入天气数据）
+    const poemResult = getPoemForNonDbCity(keyword, lat, lng, originWeather, antipodeWeather);
+    
+    // 6. 构造临时城市数据
+    const tempCityData = {
+        lat: lat,
+        lng: lng,
+        name_cn: keyword,
+        name_en: nameEn,
+        antipode_name: '', 
+        antipode_name_en: '',
+        antipode_lat: anti.lat,
+        antipode_lng: anti.lng,
+        poem: poemResult.cn,
+        poem_en: poemResult.en,
+        origin_image: '',
+        antipode_image: ''
+    };
+    currentCityData = tempCityData;
+    document.getElementById('poemDisplay').innerHTML = `${poemResult.cn}<br>${poemResult.en}`;
+    
+    // 7. 更新天气浮层
+    updateWeatherFloating(originWeather, antipodeWeather);
+    
+    // 8. 调用通用处理（缓存、历史、礼物、日限）
+    await handleSearchSuccess(lat, lng, keyword, tempCityData, originWeather, antipodeWeather);
+}       
+async function searchLocation(keyword, retryCount = 0) {
     window._currentGift = null;
+    window._lastShareCardData = null;  // 清除旧的分享卡数据
     if (isSearching) return;
     if (!placeSearch) { alert('搜索服务初始化中，请稍后重试'); return; }
     if (!keyword.trim()) { alert('请输入地点名称'); return; }
@@ -814,16 +1500,45 @@ triggerGiftForLocation(lat, lng, cityObj);
     // ===== L1: 检查缓存（重复搜索同一城市） =====
     const cacheKey = searchKeyword.toLowerCase();
     if (searchCache.has(cacheKey)) {
-        console.log('✅ 命中缓存，秒开');
-        const cached = searchCache.get(cacheKey);
-        currentCityData = cached.cityData;
-        updateAll(cached.lat, cached.lng);
-        document.getElementById('poemDisplay').innerHTML = cached.poemHTML;
-        addToHistory(cached.cityName);
-        // 缓存命中时也始终触发物产
-triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
-        return;
+    console.log('✅ 命中缓存，秒开');
+    const cached = searchCache.get(cacheKey);
+    currentCityData = cached.cityData;
+    updateAll(cached.lat, cached.lng);
+    
+    // ---- 重新生成诗句（不依赖缓存中的旧诗句） ----
+    const isDatabaseCity = cached.cityData && cached.cityData.id && cached.cityData.poem;
+    let poemCN, poemEN;
+    
+    if (isDatabaseCity) {
+        // 数据库城市：获取天气后应用反差
+        try {
+            const weather = await fetchBothWeather(cached.lat, cached.lng);
+            const result = applyWeatherPoem(cached.cityData, weather.originWeather, weather.antipodeWeather);
+            poemCN = result.poemCN;
+            poemEN = result.poemEN;
+        } catch (e) {
+            poemCN = cached.cityData.poem || DEFAULT_POEM_CN;
+            poemEN = cached.cityData.poem_en || DEFAULT_POEM_EN;
+        }
+    } else {
+        // 非数据库城市：直接用 getPoemForNonDbCity
+        const result = getPoemForNonDbCity(
+            cached.cityData.name_cn || cached.cityName,
+            cached.lat,
+            cached.lng,
+            window._originWeather || null,
+            window._antipodeWeather || null
+        );
+        poemCN = result.cn;
+        poemEN = result.en;
     }
+    
+    document.getElementById('poemDisplay').innerHTML = `${poemCN}<br>${poemEN}`;
+    addToHistory(cached.cityName);
+    triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
+    incrementTodayCount();
+    return;
+}
 
     // ===== L2: 检查个人日限（100次/天） =====
     const countData = getTodayCount();
@@ -834,6 +1549,9 @@ triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
 
    isSearching = true;
     document.getElementById('searchBtn').disabled = true;
+document.getElementById('searchBtn').textContent = '⏳ 搜索中...';
+// ✅ 在这里定义 isQuark
+    const isQuark = navigator.userAgent.toLowerCase().includes('quark');
 
     // ============================================================
     // 第一步：先查数据库（任何关键词都优先）
@@ -844,15 +1562,35 @@ triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
         });
         const dbData = await dbRes.json();
         if (dbData && dbData.length > 0) {
-            // 命中数据库，直接使用
-            const city = dbData[0];
-            currentCityData = city;
-            updateAll(city.lat, city.lng);
-            const displayCN = city.poem || DEFAULT_POEM_CN;
-            const displayEN = city.poem_en || DEFAULT_POEM_EN;
-            document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}`;
-            addToHistory(city.name_cn);
-            await handleSearchSuccess(city.lat, city.lng, city.name_cn, city);
+           // 命中数据库，直接使用
+const city = dbData[0];
+currentCityData = city;
+updateAll(city.lat, city.lng);
+
+// ---- 获取天气并判断反差 ----
+let originWeather = null;
+let antipodeWeather = null;
+
+try {
+    const weather = await fetchBothWeather(city.lat, city.lng);
+    originWeather = weather.originWeather;
+    antipodeWeather = weather.antipodeWeather;
+    window._originWeather = originWeather;
+    window._antipodeWeather = antipodeWeather;
+    window._antiLat = calculateAntipode(city.lat, city.lng).lat;
+    window._antiLng = calculateAntipode(city.lat, city.lng).lng;
+    updateWeatherFloating(originWeather, antipodeWeather);
+} catch (e) {
+    console.warn('天气获取失败:', e.message);
+}
+
+// ---- 应用天气反差到诗句 ----
+const poemResult = applyWeatherPoem(city, originWeather, antipodeWeather);
+currentCityData.poem = poemResult.poemCN;
+currentCityData.poem_en = poemResult.poemEN;
+document.getElementById('poemDisplay').innerHTML = `${poemResult.poemCN}<br>${poemResult.poemEN}`;
+
+await handleSearchSuccess(city.lat, city.lng, city.name_cn, city, originWeather, antipodeWeather);
             isSearching = false;
             document.getElementById('searchBtn').disabled = false;
             showLoading(false);
@@ -862,175 +1600,56 @@ triggerGiftForLocation(cached.lat, cached.lng, cached.cityData);
         console.log('⚠️ 数据库查询失败，继续走地理编码:', e.message);
     }
 
-    // ============================================================
-    // 第二步：未命中数据库 → 走地理编码
-    // ============================================================
-    // ===== 优先尝试天地图（国内地址） =====
-    const isChineseKeyword = /[\u4e00-\u9fa5]/.test(searchKeyword);
-    if (isChineseKeyword) {
-        // 1. 优先高德（国内精度最高）
-        try {
-            const amapResult = await searchWithAmapDomestic(searchKeyword);
-           if (amapResult) {
-    console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
-    // ---- 获取对跖点名称 ----
-    let antipodeName = '地球另一端';
-    let antipodeNameEn = '';
+   // ============================================================
+// 第二步：未命中数据库 → 走地理编码
+// ============================================================
+// ===== 优先尝试天地图（国内地址） =====
+const isChineseKeyword = /[\u4e00-\u9fa5]/.test(searchKeyword);
+if (isChineseKeyword) {
+    // 1. 优先高德（国内精度最高）
     try {
-        const anti = calculateAntipode(amapResult.lat, amapResult.lng);
-        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const geoData = await geoRes.json();
-        if (geoData.success && geoData.name) {
-            antipodeName = geoData.name;
-            antipodeNameEn = geoData.nameEn || '';
-        }
-    } catch (e) {
-        console.warn('获取对跖点名称失败:', e);
-    }
-    // ---- 获取拼音 ----
-    let nameEn = '';
-    try {
-        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const pinyinData = await pinyinRes.json();
-        if (pinyinData.success) {
-            nameEn = pinyinData.pinyin;
-        }
-    } catch (e) {
-        console.warn('拼音获取失败:', e);
-    }
-    // ---- 构造临时城市数据 ----
-    const tempCityData = {
-        lat: amapResult.lat,
-        lng: amapResult.lng,
-        name_cn: searchKeyword,
-        name_en: nameEn,
-        antipode_name: antipodeName,
-        antipode_name_en: antipodeNameEn,
-        poem: '「这一刻，你与地球背面，同频呼吸。」',
-        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
-        origin_image: '',
-        antipode_image: ''
-    };
-    currentCityData = tempCityData;
-    await handleSearchSuccess(amapResult.lat, amapResult.lng, searchKeyword, tempCityData);
-    // ...
-}
-
-
-
-        } catch (e) {
-            console.log('⚠️ 高德失败，降级到天地图');
-        }
-        // 2. 天地图作为备选
-        try {
-            const tianDiTuResult = await searchWithTianDiTu(searchKeyword);
-           if (tianDiTuResult) {
-    console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
-    let antipodeName = '地球另一端';
-    let antipodeNameEn = '';
-    try {
-        const anti = calculateAntipode(tianDiTuResult.lat, tianDiTuResult.lng);
-        const geoRes = await fetch(`/api/reverse-geocode?lng=${anti.lng}&lat=${anti.lat}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const geoData = await geoRes.json();
-        if (geoData.success && geoData.name) {
-            antipodeName = geoData.name;
-            antipodeNameEn = geoData.nameEn || '';
-        }
-    } catch (e) {
-        console.warn('获取对跖点名称失败:', e);
-    }
-    // ---- 获取拼音 ----
-    let nameEn = '';
-    try {
-        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const pinyinData = await pinyinRes.json();
-        if (pinyinData.success) {
-            nameEn = pinyinData.pinyin;
-        }
-    } catch (e) {
-        console.warn('拼音获取失败:', e);
-    }
-    // ---- 构造临时城市数据 ----
-    const tempCityData = {
-        lat: tianDiTuResult.lat,
-        lng: tianDiTuResult.lng,
-        name_cn: searchKeyword,
-        name_en: nameEn,
-        antipode_name: antipodeName,
-        antipode_name_en: antipodeNameEn,
-        poem: '「这一刻，你与地球背面，同频呼吸。」',
-        poem_en: 'In this moment, you breathe in sync with the far side of the earth.',
-        origin_image: '',
-        antipode_image: ''
-    };
-    currentCityData = tempCityData;
-    await handleSearchSuccess(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword, tempCityData);
-                isSearching = false;
-                document.getElementById('searchBtn').disabled = false;
-                showLoading(false);
-                return;
-            }
-        } catch (e) {
-            console.log('⚠️ 天地图失败，降级到竞赛');
-        }
-    } else {
-        console.log('⚠️ 关键词非中文，跳过天地图');
-    }
-
-    // ===== 检测经纬度（支持多种格式） =====
-    const coord = parseCoordinate(searchKeyword);
-if (coord) {
-    const { lat, lng } = coord;
-    console.log(`📍 经纬度定位: ${lat}, ${lng}`);
-    const antipode = calculateAntipode(lat, lng);
-    updateAll(lat, lng);
-    const poemHTML = '「这一刻，你与地球背面，同频呼吸。」<br>In this moment, you breathe in sync with the far side of the earth.';
-    document.getElementById('poemDisplay').innerHTML = poemHTML;
-
-    addToHistory(searchKeyword);
-
-    // ---- 获取拼音 ----
-    let nameEn = '';
-    try {
-        const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(searchKeyword)}`, {
-            headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const pinyinData = await pinyinRes.json();
-        if (pinyinData.success) {
-            nameEn = pinyinData.pinyin;
-        }
-    } catch (e) {
-        console.warn('拼音获取失败:', e);
-    }
-    // ---- 构造城市数据 ----
-    currentCityData = {
-        lat,
-        lng,
-        name_cn: `📍 ${formatCoord(lat, lng)}`,
-        name_en: nameEn,   // 现在 nameEn 已定义
-        antipode_name: '地球另一端',
-        antipode_name_en: '',
-        poem: '「这一刻，你与地球背面，同频呼吸。」\nIn this moment, you breathe in sync with the far side of the earth.',
-        origin_image: '',
-        antipode_image: ''
-    };
-
-            // ===== 调用通用处理（缓存 + 日限） =====
-            await handleSearchSuccess(lat, lng, searchKeyword, null);
-
+        const amapResult = await searchWithAmapDomestic(searchKeyword);
+        if (amapResult) {
+            console.log('📍 高德命中（国内）:', searchKeyword, amapResult);
+            await processGeocodeResult(amapResult.lat, amapResult.lng, searchKeyword);
             isSearching = false;
             document.getElementById('searchBtn').disabled = false;
             showLoading(false);
             return;
         }
+    } catch (e) {
+        console.log('⚠️ 高德失败，降级到天地图');
+    }
+    // 2. 天地图作为备选
+    try {
+        const tianDiTuResult = await searchWithTianDiTu(searchKeyword);
+        if (tianDiTuResult) {
+            console.log('🌐 天地图命中（备选）:', searchKeyword, tianDiTuResult);
+            await processGeocodeResult(tianDiTuResult.lat, tianDiTuResult.lng, searchKeyword);
+            isSearching = false;
+            document.getElementById('searchBtn').disabled = false;
+            showLoading(false);
+            return;
+        }
+    } catch (e) {
+        console.log('⚠️ 天地图失败，降级到竞赛');
+    }
+} else {
+    console.log('⚠️ 关键词非中文，跳过天地图');
+}
+
+// ===== 检测经纬度（支持多种格式） =====
+const coord = parseCoordinate(searchKeyword);
+if (coord) {
+    const { lat, lng } = coord;
+    console.log(`📍 经纬度定位: ${lat}, ${lng}`);
+    await processGeocodeResult(lat, lng, searchKeyword);
+    isSearching = false;
+    document.getElementById('searchBtn').disabled = false;
+    showLoading(false);
+    return;
+}
+// 之后是竞赛搜索（高德/OSM/Photon），保持不变
             try {
                 const results = await Promise.race([
     (async () => {
@@ -1100,24 +1719,22 @@ if (coord) {
     })()
 ]);
 
-                                              const { lat, lng, source } = results;
+                                             const { lat, lng } = results;
                 
                 // ===== 优先查数据库（无论中文英文） =====
                 let cityData = null;
                 let cityName = searchKeyword;
 
                 // 先尝试用原始关键词查数据库
-              const isQuark = navigator.userAgent.toLowerCase().includes('quark');
 const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchKeyword)}`, {
     headers: { 'ngrok-skip-browser-warning': 'true' },
     cache: isQuark ? 'no-cache' : 'default'  // 夸克强制无缓存
 });
                 const searchResult = await searchRes.json();
-                if (searchResult && searchResult.length > 0) {
-                    cityData = searchResult;
-                    console.log(`✅ 直接命中数据库: ${searchResult[0].name_cn}`);
-                }
-
+               if (searchResult && searchResult.length > 0) {
+    cityData = searchResult[0];  // ✅ 赋值的是对象
+    console.log(`✅ 直接命中数据库: ${searchResult[0].name_cn}`);
+}
                 // 如果没命中，再走逆地理编码流程
                 if (!cityData) {
                     try {
@@ -1136,137 +1753,204 @@ const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchKeyword)
 });
                         const cityData2 = await cityRes.json();
                         if (cityData2 && cityData2.length > 0) {
-                            cityData = cityData2;
+                            cityData = cityData2[0];
                         }
                     }
                 }
 
- if (cityData && cityData.length > 0) {
-                    const city = cityData[0];
-                    currentCityData = city;
-                    updateAll(city.lat, city.lng);
-                    const displayCN = city.poem || DEFAULT_POEM_CN;
-                    const displayEN = city.poem_en || DEFAULT_POEM_EN;
-                    const poemHTML = `${displayCN}<br>${displayEN}`;
-                    document.getElementById('poemDisplay').innerHTML = poemHTML;
-                    addToHistory(cityName);
+ if (cityData) {
+    const city = cityData;
+    currentCityData = city;
+    updateAll(city.lat, city.lng);
+    
+    // ---- 获取天气 ----
+    let originWeather = null;
+    let antipodeWeather = null;
+    
+    try {
+        const weather = await fetchBothWeather(city.lat, city.lng);
+        originWeather = weather.originWeather;
+        antipodeWeather = weather.antipodeWeather;
+        window._originWeather = originWeather;
+        window._antipodeWeather = antipodeWeather;
+        window._antiLat = calculateAntipode(city.lat, city.lng).lat;
+        window._antiLng = calculateAntipode(city.lat, city.lng).lng;
+        updateWeatherFloating(originWeather, antipodeWeather);
+    } catch (e) {
+        console.warn('天气获取失败:', e.message);
+    }
+    
+    // ---- 应用天气反差到诗句 ----
+    const poemResult = applyWeatherPoem(city, originWeather, antipodeWeather);
+    city.poem = poemResult.poemCN;
+    city.poem_en = poemResult.poemEN;
+    document.getElementById('poemDisplay').innerHTML = `${poemResult.poemCN}<br>${poemResult.poemEN}`;
+    
+    await handleSearchSuccess(city.lat, city.lng, city.name_cn, city, originWeather, antipodeWeather);
 
-                    // ===== 调用通用处理（缓存 + 日限 + 礼物） =====
-                    await handleSearchSuccess(city.lat, city.lng, cityName, city);
-                } else {
-                    const originalCityName = searchKeyword;
-                    const antipode = calculateAntipode(lat, lng);
-                    updateAll(lat, lng);
-                    const poemHTML = '「这一刻，你与地球背面，同频呼吸。」<br>In this moment, you breathe in sync with the far side of the earth.';
-                    document.getElementById('poemDisplay').innerHTML = poemHTML;
-                    addToHistory(searchKeyword);
+              } else {
+    const originalCityName = searchKeyword;
+    const antipode = calculateAntipode(lat, lng);
+    updateAll(lat, lng);
 
-                    // ===== 获取对跖点名称 =====
-                    let antipodeName = '地球另一端';
-                    let antipodeNameEn = '';
-                    try {
-                        const geoRes = await fetch(`/api/reverse-geocode?lng=${antipode.lng}&lat=${antipode.lat}`, {
-                            headers: { 'ngrok-skip-browser-warning': 'true' }
-                        });
-                        const geoData = await geoRes.json();
-                        if (geoData.success && geoData.name) {
-                            antipodeName = geoData.name;
-                            antipodeNameEn = geoData.nameEn || '';
-                        }
-                    } catch (e) {
-                        console.warn('获取对跖点名称失败:', e);
-                    }
+    // ---- 获取天气（先获取，用于诗句生成） ----
+    let originWeather = null;
+    let antipodeWeather = null;
+    try {
+        const weather = await fetchBothWeather(lat, lng);
+        originWeather = weather.originWeather;
+        antipodeWeather = weather.antipodeWeather;
+        window._originWeather = originWeather;
+        window._antipodeWeather = antipodeWeather;
+        window._antiLat = antipode.lat;
+        window._antiLng = antipode.lng;
+    } catch (e) {
+        console.warn('天气获取失败:', e);
+    }
+    
+    // ---- 更新天气浮层 ----
+    updateWeatherFloating(originWeather, antipodeWeather);
 
-                    // ===== 城市名英文（拼音） =====
-                    let nameEn = originalCityName;
-                    if (/[\u4e00-\u9fa5]/.test(originalCityName)) {
-                        try {
-                            const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(originalCityName)}`, {
-                                headers: { 'ngrok-skip-browser-warning': 'true' }
-                            });
-                            const pinyinData = await pinyinRes.json();
-                            if (pinyinData.success) {
-                                nameEn = pinyinData.pinyin;
-                            }
-                        } catch (e) {
-                            nameEn = originalCityName;
-                        }
-                    }
+    // ===== 获取对跖点名称 =====
+    let antipodeName = '地球另一端';
+    let antipodeNameEn = '';
+    try {
+        const geoRes = await fetch(`/api/reverse-geocode?lng=${antipode.lng}&lat=${antipode.lat}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.success && geoData.name) {
+            antipodeName = geoData.name;
+            antipodeNameEn = geoData.nameEn || '';
+        }
+    } catch (e) {
+        console.warn('获取对跖点名称失败:', e);
+    }
 
-                    currentCityData = {
-                        lat,
-                        lng,
-                        name_cn: originalCityName,
-                        name_en: nameEn,
-                        antipode_name: antipodeName,
-                        antipode_name_en: antipodeNameEn,
-                        poem: '「这一刻，你与地球背面，同频呼吸。」\nIn this moment, you breathe in sync with the far side of the earth.'
-                    };
+    // ===== 城市名英文（拼音） =====
+    let nameEn = originalCityName;
+    if (/[\u4e00-\u9fa5]/.test(originalCityName)) {
+        try {
+            const pinyinRes = await fetch(`/api/get-pinyin?text=${encodeURIComponent(originalCityName)}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            const pinyinData = await pinyinRes.json();
+            if (pinyinData.success) {
+                nameEn = pinyinData.pinyin;
+            }
+        } catch (e) {
+            nameEn = originalCityName;
+        }
+    }
+    
+    // ---- 获取诗句（传入天气数据） ----
+    const poemResult = getPoemForNonDbCity(
+        originalCityName,
+        lat,
+        lng,
+        originWeather,
+        antipodeWeather
+    );
 
-                    // ===== 调用通用处理（缓存 + 日限） =====
-                    await handleSearchSuccess(lat, lng, originalCityName, null);
-                }
+    currentCityData = {
+        lat,
+        lng,
+        name_cn: originalCityName,
+        name_en: nameEn,
+        antipode_name: '', 
+        antipode_name_en: '',
+        antipode_lat: antipode.lat,
+        antipode_lng: antipode.lng,
+        poem: poemResult.cn,
+        poem_en: poemResult.en
+    };
+
+    // ---- 更新诗句显示 ----
+    document.getElementById('poemDisplay').innerHTML = `${poemResult.cn}<br>${poemResult.en}`;
+
+    // ===== 调用通用处理（缓存 + 日限） =====
+    await handleSearchSuccess(lat, lng, originalCityName, currentCityData, originWeather, antipodeWeather);
+}
 
           } catch (e) {
     console.log('❌ 搜索失败:', e.message);
     if (retryCount < 1) {
-        console.log('🔄 搜索失败，自动重试...');
-        isSearching = false;
-        document.getElementById('searchBtn').disabled = false;
-        showLoading(false);
-        setTimeout(() => {
-            searchLocation(keyword, retryCount + 1);
-        }, 500);
-        return;
+    console.log('🔄 搜索失败，自动重试...');
+    isSearching = false;
+    document.getElementById('searchBtn').disabled = false;
+    showLoading(false);
+    // 清除防抖定时器，避免冲突
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
     }
+    setTimeout(() => {
+        searchLocation(keyword, retryCount + 1);
+    }, 500);
+    return;
+}
     alert(`未找到“${searchKeyword}”的相关结果，请检查拼写后重试`);
 } finally {
     isSearching = false;
     document.getElementById('searchBtn').disabled = false;
+    document.getElementById('searchBtn').textContent = '🔍 搜索';
     showLoading(false);
 }
         }
 
-        // ===== 定位 =====
-        function getMyLocation() {
+       // ===== 定位 =====
+function getMyLocation() {
     window._currentGift = null;
-            if (!navigator.geolocation) { alert('浏览器不支持定位'); return; }
-            showLoading(true);
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    try {
-                       const cityRes = await fetch(`/api/search?q=${latitude.toFixed(4)},${longitude.toFixed(4)}`, {
-    headers: { 'ngrok-skip-browser-warning': 'true' }
-});
-                        const cityData = await cityRes.json();
-                        if (cityData && cityData.length > 0) {
-                            const city = cityData[0];
-                            currentCityData = city;
-                            updateAll(city.lat, city.lng);
-                            const displayCN = city.poem || DEFAULT_POEM_CN;
-const displayEN = city.poem_en || DEFAULT_POEM_EN;
-document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}`;
-                            addToHistory(city.name_cn);
-                                                      // ===== 物产触发逻辑（原点在中国即触发） =====
-                           triggerGiftForLocation(city.lat, city.lng, city);
-                        } else {
-                            const antipode = calculateAntipode(latitude, longitude);
-                            updateAll(latitude, longitude);
-                            document.getElementById('poemDisplay').innerHTML = `${DEFAULT_POEM_CN}<br>${DEFAULT_POEM_EN}`;
-                            // ===== 物产触发逻辑（原点在中国即触发） =====
-                            triggerGiftForLocation(latitude, longitude, null);
-                        }
-                    } catch(e) {
-                        const antipode = calculateAntipode(latitude, longitude);
-                        updateAll(latitude, longitude);
-                        document.getElementById('poemDisplay').innerHTML = `${DEFAULT_POEM_CN}<br>${DEFAULT_POEM_EN}`;
-                    }
-                    showLoading(false);
-                },
-                () => { alert('定位失败'); showLoading(false); }
-            );
-        }
+    if (!navigator.geolocation) { alert('浏览器不支持定位'); return; }
+    showLoading(true);
+    navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            
+            // ===== 🆕 获取天气 =====
+            const { originWeather, antipodeWeather } = await fetchBothWeather(latitude, longitude);
+            window._originWeather = originWeather;
+            window._antipodeWeather = antipodeWeather;
+            window._antiLat = calculateAntipode(latitude, longitude).lat;
+            window._antiLng = calculateAntipode(latitude, longitude).lng;
+            // 注意：地图容器可能还未渲染，等 updateAll 后再更新浮层
+            
+            try {
+                const cityRes = await fetch(`/api/search?q=${latitude.toFixed(4)},${longitude.toFixed(4)}`, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+               const cityData = await cityRes.json();
+if (cityData && cityData.length > 0) {
+    const city = cityData[0];
+    currentCityData = city;
+    updateAll(city.lat, city.lng);
+                    // ===== 🆕 更新天气浮层 =====
+                    updateWeatherFloating(window._originWeather, window._antipodeWeather);
+                    const displayCN = city.poem || DEFAULT_POEM_CN;
+                    const displayEN = city.poem_en || DEFAULT_POEM_EN;
+                    document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}`;
+                    triggerGiftForLocation(city.lat, city.lng, city);
+                } else {
+                    const antipode = calculateAntipode(latitude, longitude);
+                    updateAll(latitude, longitude);
+                    // ===== 🆕 更新天气浮层 =====
+                    updateWeatherFloating(window._originWeather, window._antipodeWeather);
+                    document.getElementById('poemDisplay').innerHTML = `${DEFAULT_POEM_CN}<br>${DEFAULT_POEM_EN}`;
+                    triggerGiftForLocation(latitude, longitude, null);
+ incrementTodayCount(); // ✅ 补上
+                }
+            } catch(e) {
+                const antipode = calculateAntipode(latitude, longitude);
+                updateAll(latitude, longitude);
+                // ===== 🆕 更新天气浮层 =====
+                updateWeatherFloating(window._originWeather, window._antipodeWeather);
+                document.getElementById('poemDisplay').innerHTML = `${DEFAULT_POEM_CN}<br>${DEFAULT_POEM_EN}`;
+            }
+            showLoading(false);
+        },
+        () => { alert('定位失败'); showLoading(false); }
+    );
+}
 
         // ===== 礼物系统（增强版：带错误捕获） =====
         function showGift(city) {
@@ -1332,24 +2016,34 @@ document.getElementById('poemDisplay').innerHTML = `${displayCN}<br>${displayEN}
                 elements.giftName.textContent = gift.name;
                 elements.giftDesc.textContent = poem || gift.description;
 
-                // 底部产地信息
-                elements.giftFromPlace.textContent = `——${gift.from}`;
-
-                // 产地英文（带映射）
-                const placeMap = {
-                    '瓦尔德斯半岛': 'Península Valdés',
-                    '阿根廷': 'Argentina',
-                    '智利': 'Chile',
-                    '太平洋': 'Pacific Ocean',
-                    '大西洋': 'Atlantic Ocean',
-                    '安第斯山脉': 'Andes Mountains',
-                    '巴塔哥尼亚': 'Patagonia',
-                    '潘帕斯草原': 'Pampas Grassland',
-                    '布宜诺斯艾利斯': 'Buenos Aires',
-                    '圣地亚哥': 'Santiago',
-                };
-                const fromEn = placeMap[gift.from] || gift.from;
-                elements.giftFromEn.textContent = `A gentle breeze from the far side of the earth — ${fromEn}`;
+                       // 底部产地信息
+        // 使用 displayName 格式：国家+省名（如"阿根廷布宜诺斯艾利斯"）
+        let fromDisplay = gift.from || '地球另一端';
+        let fromDisplayEn = gift.fromEn || '';
+        
+        // 如果 gift 中有匹配结果，使用更精确的名称
+        if (gift._antipodeResult && gift._antipodeResult.level === 'province') {
+            fromDisplay = gift._antipodeResult.displayName;
+            fromDisplayEn = gift._antipodeResult.displayNameEn;
+        } else {
+            // 降级：使用 placeMap 映射
+            const placeMap = {
+                '瓦尔德斯半岛': 'Península Valdés',
+                '阿根廷': 'Argentina',
+                '智利': 'Chile',
+                '太平洋': 'Pacific Ocean',
+                '大西洋': 'Atlantic Ocean',
+                '安第斯山脉': 'Andes Mountains',
+                '巴塔哥尼亚': 'Patagonia',
+                '潘帕斯草原': 'Pampas Grassland',
+                '布宜诺斯艾利斯': 'Buenos Aires',
+                '圣地亚哥': 'Santiago',
+            };
+            fromDisplayEn = placeMap[gift.from] || gift.from || fromDisplay;
+        }
+        
+        elements.giftFromPlace.textContent = `——${fromDisplay}`;
+        elements.giftFromEn.textContent = `A gentle breeze from the far side of the earth — ${fromDisplayEn || fromDisplay}`;
 
                 // 礼物图片
                 const displayImage = image;
@@ -1397,28 +2091,45 @@ function isInChina(lat, lng) {
     return lat >= 18 && lat <= 54 && lng >= 73 && lng <= 135;
 }
 function getAntipodeRegion(antiLat, antiLng) {
-    // ===== 1. 太平洋优先（南美西海岸外海） =====
-    // 放宽到 -71°，覆盖更多海洋区域
-    if (antiLng < -71.2 && antiLat > -55 && antiLat < -12) {
+    // ===== 判断是否在南美陆地（内部辅助函数） =====
+    function isSouthAmericaLand(lat, lng) {
+        return lat > -55 && lat < 12 && lng > -82 && lng < -34;
+    }
+    
+    // ===== 1. 太平洋优先 =====
+    // 经度 < -72 且在南美西海岸纬度范围内 → 太平洋
+    if (antiLng < -72 && antiLat > -55 && antiLat < -12) {
         return { type: 'ocean', region: 'pacific' };
     }
-    // 太平洋宽泛区域（东经>120 或 西经<-80）
+    
+    // 太平洋宽泛区域
     if ((antiLng >= 120 && antiLng <= 180) || (antiLng >= -180 && antiLng < -80)) {
         return { type: 'ocean', region: 'pacific' };
     }
 
-    // ===== 2. 南美洲陆地 =====
+    // ===== 2. 东海岸外海（南纬35度以南，经度 < -52） =====
+    // 阿根廷东海岸和巴塔哥尼亚以东的大西洋海域
+    // 覆盖沈阳（-41.79, -56.61）、哈尔滨（-45.76, -53.37）等
+    if (antiLat < -35 && antiLng < -52) {
+        return { type: 'ocean', region: 'atlantic' };
+    }
+
+    // ===== 3. 大西洋 =====
+    if (antiLng >= -75 && antiLng <= -10 && !isSouthAmericaLand(antiLat, antiLng)) {
+        return { type: 'ocean', region: 'atlantic' };
+    }
+
+    // ===== 4. 南美洲陆地 =====
     const isSouthAmerica = antiLat > -55 && antiLat < 12 && antiLng > -82 && antiLng < -34;
     if (isSouthAmerica) {
-        // 智利：经度范围 -72 到 -65（严格限定）
+        // 智利
         if (antiLat > -55 && antiLat < -20 && antiLng >= -72 && antiLng < -65) {
             return { type: 'land', country: '智利' };
         }
-        // 阿根廷：经度 -65 到 -55
+        // 阿根廷
         if (antiLat > -55 && antiLat < -20 && antiLng >= -65 && antiLng < -55) {
             return { type: 'land', country: '阿根廷' };
         }
-        // ... 其他国家判断（秘鲁、巴西等）
         // 秘鲁/厄瓜多尔
         if (antiLat > -18 && antiLat < 0 && antiLng > -82 && antiLng < -68) {
             return { type: 'land', country: '秘鲁' };
@@ -1439,44 +2150,27 @@ function getAntipodeRegion(antiLat, antiLng) {
         if (antiLat > -35 && antiLat < -30 && antiLng > -58 && antiLng < -53) {
             return { type: 'land', country: '乌拉圭' };
         }
-        // 默认南美洲 → 改为 '阿根廷'（确保匹配数据库）
+        // 默认南美洲
         return { type: 'land', country: '阿根廷' };
     }
 
-    // ===== 3. 大西洋 =====
-    if (antiLng >= -75 && antiLng <= -10) {
-        return { type: 'ocean', region: 'atlantic' };
-    }
-
-    // ===== 4. 印度洋 =====
-    if (antiLng >= 30 && antiLng <= 120) {
-        return { type: 'ocean', region: 'indian' };
-    }
-
-    // ===== 5. 非洲 =====
+    // ===== 5. 其他大洲 =====
     if (antiLng >= -15 && antiLng <= 50 && antiLat > -35 && antiLat < 37) {
         return { type: 'land', country: '非洲' };
     }
-
-    // ===== 6. 欧洲 =====
     if (antiLat > 35 && antiLat < 70 && antiLng > -10 && antiLng < 40) {
         return { type: 'land', country: '欧洲' };
     }
-
-    // ===== 7. 亚洲 =====
     if (antiLat > 10 && antiLat < 75 && antiLng > 40 && antiLng < 180) {
         return { type: 'land', country: '亚洲' };
     }
-
-    // ===== 8. 大洋洲 =====
     if (antiLat > -45 && antiLat < -10 && antiLng > 110 && antiLng < 180) {
         return { type: 'land', country: '大洋洲' };
     }
 
-    // ===== 9. 兜底 =====
-    return { type: 'ocean', region: 'pacific' };
+    // ===== 6. 兜底 =====
+    return { type: 'ocean', region: 'pacific', country: '太平洋' };
 }
-
 
 // ===== 物产触发核心函数（基于地理坐标，不依赖数据库关联） =====
 function triggerGiftForLocation(lat, lng, cityObj) {
@@ -1519,10 +2213,33 @@ function triggerGiftForLocation(lat, lng, cityObj) {
             giftCity.gift_poem_ripe = randomGift.poem_ripe;
             giftCity.gift_poem_ripe_en = randomGift.poem_ripe_en;
             giftCity.gift_has_green = randomGift.has_green;
-            // 对跖点名称（用于显示来源）
+            
+            // 🔧 新增：获取精确对跖点信息（省/州级别）
+            let antipodeResult = null;
+            if (typeof window.getAntipodeProvince === 'function') {
+                try {
+                    antipodeResult = window.getAntipodeProvince(antiLat, antiLng);
+                } catch (e) {
+                    console.warn('获取对跖点精确信息失败:', e);
+                }
+            }
+            
+            // 设置对跖点来源名称（优先使用精确匹配结果）
+            if (antipodeResult && (antipodeResult.level === 'province' || antipodeResult.level === 'country')) {
+                giftCity._antipodeResult = antipodeResult;
+                giftCity.from = antipodeResult.displayName || region.country || '地球另一端';
+                giftCity.fromEn = antipodeResult.displayNameEn || '';
+            } else {
+                giftCity.from = region.country || '地球另一端';
+    giftCity.fromEn = ''; // ✅ 显式赋值
+                // fromEn 由 showGift 中的 placeMap 降级处理
+            }
+            
+            // 兜底：antipode_name 用于旧逻辑兼容
             if (!giftCity.antipode_name) {
                 giftCity.antipode_name = region.country || '地球另一端';
             }
+            
             showGift(giftCity);
         }
     })
@@ -1530,23 +2247,62 @@ function triggerGiftForLocation(lat, lng, cityObj) {
 }
 // ===== 获取主题底图 =====
 function getThemeBg(city) {
-    // 🎨 底图池 —— 把你的底图放在 public/images/share-bg/ 目录下
-    const bgList = [
-        '/images/share-bg/card01.png',
-        '/images/share-bg/card02.png',
-        '/images/share-bg/card03.png',
-        '/images/share-bg/card04.png',
-    ];
+    // 1. 如果没有城市数据，直接用随机兜底
+    if (!city) {
+        const fallbackList = [
+            '/images/share-bg/card01.png',
+            '/images/share-bg/card02.png',
+            '/images/share-bg/card03.png',
+            '/images/share-bg/card04.png',
+        ];
+        return fallbackList[Math.floor(Math.random() * fallbackList.length)];
+    }
     
-    // 每次随机选一张
-    const index = Math.floor(Math.random() * bgList.length);
-    return bgList[index];
+    // 2. 计算对跖点并获取大区
+    const anti = calculateAntipode(city.lat, city.lng);
+    const region = window.getRegion(anti.lat, anti.lng);
+    const visualTheme = getVisualTheme(region?.id || '');
+    
+    // 3. 如果是 fallback（非南美区域），使用随机兜底
+    if (visualTheme === 'fallback') {
+        const fallbackList = [
+            '/images/share-bg/card01.png',
+            '/images/share-bg/card02.png',
+            '/images/share-bg/card03.png',
+            '/images/share-bg/card04.png',
+        ];
+        return fallbackList[Math.floor(Math.random() * fallbackList.length)];
+    }
+    
+    // 4. 南美区域 → 使用主题底图
+    const theme = VISUAL_THEMES[visualTheme];
+    return theme ? theme.bgImage : '/images/share-bg/card01.png';
+}
+
+/**
+ * 获取主题配色方案
+ * @param {string} visualTheme - 视觉主题 ID
+ * @returns {Object} { landColor, seaColor, lineColor }
+ */
+function getThemeColors(visualTheme) {
+    if (visualTheme === 'fallback' || !VISUAL_THEMES[visualTheme]) {
+        // 兜底：使用复古配色
+        return {
+            landColor: '#d5c8b8',
+            seaColor: '#f5f0e6',
+            lineColor: '#c8b8a0'
+        };
+    }
+    const theme = VISUAL_THEMES[visualTheme];
+    return {
+        landColor: theme.landColor,
+        seaColor: theme.seaColor,
+        lineColor: theme.lineColor,
+    };
 }
 // ===== 世界地图绘制函数（Canvas 绘制复古风格世界地图，支持双色模式） =====
-let worldMapData = null;
-let parchmentTexture = null;
 // ===== 世界地图绘制函数（支持方形邮票 + 羊皮纸纹理 + 内缩留白） =====
-async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0) {
+async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0, themeColors = null) {
     // 1. 加载 GeoJSON 数据
     if (!worldMapData) {
         try {
@@ -1573,20 +2329,34 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
 
     // 2. 使用预加载的羊皮纸纹理（已在外部预加载，无需额外加载代码）
 
-    // 3. 判断模式：左侧（原点）或右侧（对跖点）
+      // 3. 判断模式：左侧（原点）或右侧（对跖点）
     const isOriginMode = (originCoord && typeof originCoord.lat === 'number' && typeof originCoord.lng === 'number') &&
                          (!antipodeCoord || typeof antipodeCoord.lat !== 'number');
 
-    // 4. 配色方案
+    // 4. 配色方案（优先使用主题配色，否则使用复古配色）
     let landColor, seaColor, lineColor;
-    if (isOriginMode) {
-        landColor = '#d5c8b8';
-        seaColor = '#f5f0e6';
-        lineColor = '#c8b8a0';
+    if (themeColors && themeColors.landColor) {
+        // 使用主题配色（左右互换）
+        if (isOriginMode) {
+            landColor = themeColors.landColor;
+            seaColor = themeColors.seaColor;
+            lineColor = themeColors.lineColor || '#c8b8a0';
+        } else {
+            landColor = themeColors.seaColor;
+            seaColor = themeColors.landColor;
+            lineColor = themeColors.lineColor || '#c8b8a0';
+        }
     } else {
-        landColor = '#f5f0e6';
-        seaColor = '#d5c8b8';
-        lineColor = '#c8b8a0';
+        // 复古配色
+        if (isOriginMode) {
+            landColor = '#d5c8b8';
+            seaColor = '#f5f0e6';
+            lineColor = '#c8b8a0';
+        } else {
+            landColor = '#f5f0e6';
+            seaColor = '#d5c8b8';
+            lineColor = '#c8b8a0';
+        }
     }
 
     // 5. 计算绘制区域（支持拉伸填满方形 + 内缩留白）
@@ -1631,7 +2401,7 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
 
     // 海洋纹理（更明显）
     ctx.save();
-    for (var i = 0; i < 1200; i++) {
+    for (var i = 0; i < 600; i++) {
         var xPos = x + padding + Math.random() * mapWidth;
         var yPos = y + padding + Math.random() * mapHeight;
         var alpha = Math.random() * 0.06;
@@ -1685,23 +2455,8 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     });
     ctx.closePath();
 
-    var grad = ctx.createRadialGradient(
-        x + padding + mapWidth * 0.35,
-        y + padding + mapHeight * 0.35,
-        0,
-        x + padding + mapWidth * 0.35,
-        y + padding + mapHeight * 0.35,
-        Math.max(mapWidth, mapHeight) * 0.7
-    );
-    if (isOriginMode) {
-        grad.addColorStop(0, '#e8dcc8');
-        grad.addColorStop(1, '#d5c8b8');
-    } else {
-        grad.addColorStop(0, '#f0ece4');
-        grad.addColorStop(1, '#e0d5c5');
-    }
-    ctx.fillStyle = grad;
-    ctx.fill();
+    ctx.fillStyle = landColor;
+ctx.fill();
 
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 1.0;
@@ -1713,7 +2468,7 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
     ctx.beginPath();
     ctx.rect(x + padding, y + padding, mapWidth, mapHeight);
     ctx.clip();
-    for (var j = 0; j < 1500; j++) {
+    for (var j = 0; j < 800; j++) {
         var px = x + padding + Math.random() * mapWidth;
         var py = y + padding + Math.random() * mapHeight;
         ctx.fillStyle = 'rgba(139, 115, 85, ' + (Math.random() * 0.10) + ')';
@@ -1822,6 +2577,106 @@ async function drawWorldMapContent(ctx, x, y, size, originCoord, antipodeCoord, 
 }
 
 async function generateShareCard(city) {
+// ===== 硬编码省名中文翻译（确保分享卡显示中文） =====
+const PROVINCE_NAME_MAP = {
+  // === 阿根廷 ===
+  "Entre Ríos": "恩特雷里奥斯",
+  "Buenos Aires": "布宜诺斯艾利斯",
+  "Córdoba": "科尔多瓦",
+  "Santa Fe": "圣菲",
+  "Mendoza": "门多萨",
+  "Salta": "萨尔塔",
+  "Santiago del Estero": "圣地亚哥-德尔埃斯特罗",
+  "Catamarca": "卡塔马卡",
+  "La Rioja": "拉里奥哈",
+  "San Juan": "圣胡安",
+  "San Luis": "圣路易斯",
+  "Tucumán": "图库曼",
+  "Jujuy": "胡胡伊",
+  "Formosa": "福尔摩萨",
+  "Chaco": "查科",
+  "Misiones": "米西奥内斯",
+  "Corrientes": "科连特斯",
+  "Neuquén": "内乌肯",
+  "Río Negro": "内格罗河",
+  "La Pampa": "拉潘帕",
+  "Tierra del Fuego": "火地岛",
+  "Chubut": "丘布特",
+  "Santa Cruz": "圣克鲁斯",
+  "Ciudad de Buenos Aires": "布宜诺斯艾利斯市",
+  // === 智利 ===
+  "Santiago Metropolitan": "圣地亚哥首都大区",
+  "Región Metropolitana de Santiago": "圣地亚哥首都大区",
+  "Valparaíso": "瓦尔帕莱索",
+  "Biobío": "比奥比奥",
+  "Maule": "马乌莱",
+  "Coquimbo": "科金博",
+  "Antofagasta": "安托法加斯塔",
+  "Atacama": "阿塔卡马",
+  "La Araucanía": "阿劳卡尼亚",
+  "Los Lagos": "湖大区",
+  "Aisén del General Carlos Ibáñez del Campo": "艾森",
+  "Magallanes y Antártica Chilena": "麦哲伦",
+  "Tarapacá": "塔拉帕卡",
+  "Arica y Parinacota": "阿里卡和帕里纳科塔",
+  "Los Ríos": "河大区",
+  "Ñuble": "纽夫莱",
+  "Libertador General Bernardo O'Higgins": "解放者贝尔纳多·奥希金斯将军大区",
+  // === 秘鲁 ===
+  "Lima": "利马",
+  "Cusco": "库斯科",
+  "Arequipa": "阿雷基帕",
+  "La Libertad": "拉利伯塔德",
+  "Piura": "皮乌拉",
+  "Lambayeque": "兰巴耶克",
+  "Tacna": "塔克纳",
+  "Moquegua": "莫克瓜",
+  "Puno": "普诺",
+  "Junín": "胡宁",
+  "Huánuco": "瓦努科",
+  "Áncash": "安卡什",
+  "Ica": "伊卡",
+  "Ayacucho": "阿亚库乔",
+  "Cajamarca": "卡哈马卡",
+  "San Martín": "圣马丁",
+  "Ucayali": "乌卡亚利",
+  "Madre de Dios": "马德雷德迪奥斯",
+  "Amazonas": "亚马孙",
+  "Loreto": "洛雷托",
+  "Pasco": "帕斯科",
+  "Huancavelica": "万卡韦利卡",
+  "Apurímac": "阿普里马克",
+  "Callao": "卡亚俄",
+  "Lima Province": "利马省"
+};
+// ===== 🔽 在这里添加国家名中文翻译映射 =====
+const COUNTRY_NAME_MAP = {
+  "Argentina": "阿根廷",
+  "Chile": "智利",
+  "Peru": "秘鲁",
+  "Brazil": "巴西",
+  "Bolivia": "玻利维亚",
+  "Uruguay": "乌拉圭",
+  "Paraguay": "巴拉圭",
+  "Spain": "西班牙",
+  "New Zealand": "新西兰",
+  "Australia": "澳大利亚",
+  "United States": "美国",
+  "Canada": "加拿大",
+  "Mexico": "墨西哥",
+  "France": "法国",
+  "Germany": "德国",
+  "Italy": "意大利",
+  "United Kingdom": "英国",
+  "Japan": "日本",
+  "South Korea": "韩国",
+  "China": "中国",
+"Colombia": "哥伦比亚",
+"Ecuador": "厄瓜多尔",
+"Venezuela": "委内瑞拉",
+
+  // ... 根据需要补充其他常用国家
+};
 // ===== 新增：确保 GeoJSON 已加载 =====
     await ensureWorldMapData();
     if (!city) {
@@ -1835,13 +2690,18 @@ async function generateShareCard(city) {
     canvas.width = W;
     canvas.height = H;
 
-        // ===== 1. 绘制底图（使用预加载缓存） =====
-    const bgPath = getThemeBg(city);
-    let bgImage = bgImageCache[bgPath];
-    if (!bgImage || !bgImage.complete) {
-        // 如果缓存中没有或未加载完，降级为常规加载
-        bgImage = await loadImage(bgPath);
-    }
+       // ===== 1. 绘制底图 =====
+// 先获取主题信息，用于底图和配色
+const anti = calculateAntipode(city.lat, city.lng);
+const region = window.getRegion(anti.lat, anti.lng);
+const visualThemeId = getVisualTheme(region?.id || '');
+const themeColors = getThemeColors(visualThemeId);
+
+const bgPath = getThemeBg(city);
+let bgImage = bgImageCache[bgPath];
+if (!bgImage || !bgImage.complete) {
+    bgImage = await loadImage(bgPath);
+}
     if (!bgImage) {
         console.warn('底图加载失败，使用渐变背景');
     }
@@ -1860,11 +2720,11 @@ async function generateShareCard(city) {
     const textColor = '#1a2a4a';
     const accentColor = '#e8923a';
 
-    // ===== 修改点1：新的默认诗句（中文 + 英文） =====
-    const DEFAULT_POEM_CN = '「这一刻，你与地球背面，同频呼吸。」';
-    const DEFAULT_POEM_EN = 'In this moment, you breathe in sync with the far side of the earth.';
-    const DEFAULT_BOTTOM_CN = '穿越地心，抵达你的另一端';
-    const DEFAULT_BOTTOM_EN = 'Cross the core, meet your far side.';
+   // ===== 修改点1：新的默认诗句（中文 + 英文） =====
+// 使用全局常量（已在文件末尾定义），此处不再重复定义
+// 仅保留底部标语（未在其他地方定义）
+const DEFAULT_BOTTOM_CN = '穿越地心，抵达你的另一端';
+const DEFAULT_BOTTOM_EN = 'Cross the core, meet your far side.';
 
         // ===== 2. 顶部品牌区 =====
     ctx.textAlign = 'center';
@@ -1889,19 +2749,19 @@ ctx.fillText(brandSub, W/2, 60);
     const imgHeight = imgWidth;
     const imgY = topMargin + 30;
 
-       // ---- 3a. 加载地图图片 ----
+      // ---- 3a. 加载地图图片 ----
 let originImg = null;
 let antipodeImg = null;
 
-// 有数据库图片 → 直接使用
+// 有数据库图片 → 直接使用（带缓存）
 if (city.origin_image) {
-    originImg = await loadImage(city.origin_image);
+    originImg = await loadImageWithCache(city.origin_image);
     if (!originImg) {
         console.warn('⚠️ 地标图加载失败:', city.origin_image);
     }
 }
 if (city.antipode_image) {
-    antipodeImg = await loadImage(city.antipode_image);
+    antipodeImg = await loadImageWithCache(city.antipode_image);
     if (!antipodeImg) {
         console.warn('⚠️ 对跖点图加载失败:', city.antipode_image);
     }
@@ -2001,7 +2861,7 @@ if (!city.origin_image && !city.antipode_image) {
 const x1 = 24;
 const x2 = 24 + imgWidth + gap;
 const y = typeof imgY !== 'undefined' ? imgY + 16 : 80;
-async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0, img = null) {
+async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, stretch = false, innerPadding = 0, img = null, themeColors = null) {
     const rx = x;
     const ry = y;
     const rw = size;
@@ -2020,7 +2880,7 @@ async function drawStampWithMap(ctx, x, y, size, originCoord, antipodeCoord, str
 
     // ===== 第二步：计算内部矩形区域 =====
 // ⬇️ 在这里修改：根据是否有图片，使用不同的边距值
-var margin;
+let margin;
 if (img) {
     // 有图片：白边 8%（图片没有内部边距）
     margin = size * 0.08;
@@ -2029,27 +2889,22 @@ if (img) {
     // 总白边 ≈ 4% + 6% = 10%，与图片的 8% 接近
     margin = size * 0.04;
 }
-console.warn('🟢 当前 margin 值:', margin);
-    var rectX = rx + margin;
-    var rectY = ry + margin;
-    var rectW = rw - margin * 2;
-    var rectH = rh - margin * 2;
+    const rectX = rx + margin;
+const rectY = ry + margin;
+const rectW = rw - margin * 2;
+const rectH = rh - margin * 2;
 
     // ===== 第三步：在矩形区域内绘制图片或地图 =====
     if (img) {
-        // 有图片 → 直接绘制矩形图片（不裁剪）
         ctx.save();
         ctx.drawImage(img, rectX, rectY, rectW, rectH);
         ctx.restore();
     } else {
-        // 没有图片 → 在矩形区域内绘制世界地图
         ctx.save();
         ctx.beginPath();
         ctx.rect(rectX, rectY, rectW, rectH);
         ctx.clip();
-        // 注意：drawWorldMapContent 内部使用 padding 参数控制绘制区域
-        // 这里传入 innerPadding = 0，因为 margin 已经控制了花边
-        await drawWorldMapContent(ctx, rectX, rectY, rectW, originCoord, antipodeCoord, stretch, 0);
+        await drawWorldMapContent(ctx, rectX, rectY, rectW, originCoord, antipodeCoord, stretch, 0, themeColors);
         ctx.restore();
     }
 
@@ -2069,22 +2924,26 @@ console.warn('🟢 当前 margin 值:', margin);
     ctx.stroke();
     ctx.restore();
 }
-// 左侧邮票（传入 originImg）
+// 在 generateShareCard 中，获取视觉主题（放在加载地图图片之后，绘制邮票之前）
+
+// 左侧邮票
 await drawStampWithMap(ctx, x1, y, imgWidth,
     { lat: city.lat, lng: city.lng },
     null,
     true,
     8,
-    originImg
+    originImg,
+    themeColors  // 传入主题配色
 );
 
-// 右侧邮票（传入 antipodeImg）
+// 右侧邮票
 await drawStampWithMap(ctx, x2, y, imgWidth,
     null,
     { lat: antiLat, lng: antiLng },
     true,
     8,
-    antipodeImg
+    antipodeImg,
+    themeColors  // 传入主题配色
 );
     // ===== 绘制邮戳（横跨两张地图中间，像连接封条） =====
     try {
@@ -2110,30 +2969,180 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
     } catch (e) {
         console.warn('邮戳加载失败:', e);
     }
-    // ===== 4. 城市名 =====
-    const titleY = y + imgHeight + 6;
-    const cityNameEn = city.name_en || city.name_cn;
-    const antiNameEn = city.antipode_name_en || '';
+       // ===== 4. 城市名 =====
+const titleY = y + imgHeight + 6;
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+// ---- 获取对跖点显示名称（数据库优先） ----
+const dbName = city.antipode_name || '';
+const dbNameEn = city.antipode_name_en || '';
+const hasDbName = dbName && dbName !== '地球另一端';
+
+let antipodeCountry = '';
+let antipodeProvince = '';
+let antipodeProvinceEn = '';
+let antipodeCountryEn = '';
+
+if (hasDbName) {
+    // 1. 数据库有名称 → 直接使用（最高优先级）
+    antipodeCountry = dbName;
+    antipodeProvince = '';
+    antipodeProvinceEn = dbNameEn || '';
+    antipodeCountryEn = dbNameEn || '';
+    console.log(`✅ 使用数据库对跖点名称: ${dbName}`);
+} else if (typeof getAntipodeProvince === 'function') {
+    // 2. 数据库无名称 → 走匹配逻辑
+    try {
+        const antiLat = city.antipode_lat;
+        const antiLng = city.antipode_lng;
+        if (antiLat && antiLng) {
+            const result = getAntipodeProvince(antiLat, antiLng);
+            if (result) {
+                if (result.level === 'province') {
+                    antipodeCountry = result.country || '';
+                    antipodeProvince = result.name || '';
+                    antipodeProvinceEn = result.nameEn || '';
+                    antipodeCountryEn = result.countryEn || '';
+                    console.log(`✅ 匹配到省: ${result.displayName}`);
+                } else if (result.level === 'country') {
+                    antipodeCountry = result.displayName || '';
+                    antipodeProvince = '';
+                    antipodeProvinceEn = '';
+                    antipodeCountryEn = result.displayNameEn || '';
+                } else if (result.level === 'ocean') {
+                    antipodeCountry = result.displayName || '';
+                    antipodeProvince = '';
+                    antipodeProvinceEn = '';
+                    antipodeCountryEn = result.displayNameEn || '';
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('对跖点匹配失败，使用降级值:', e);
+        antipodeCountry = '地球另一端';
+    }
+} else {
+    // 3. 降级
+    antipodeCountry = '地球另一端';
+}
+// ===== 国家名转中文 =====
+if (antipodeCountry && COUNTRY_NAME_MAP[antipodeCountry]) {
+    antipodeCountry = COUNTRY_NAME_MAP[antipodeCountry];
+}
+
+const cityNameEn = city.name_en || city.name_cn;
+
+// ---- 左侧（原点城市名）----
+ctx.textAlign = 'center';
+ctx.textBaseline = 'top';
+ctx.fillStyle = textColor;
+ctx.font = '600 18px "Noto Serif SC", "Noto Sans SC", serif';
+ctx.fillText(`${city.name_cn}`, x1 + imgWidth / 2, titleY);
+
+ctx.fillStyle = textColor;
+ctx.globalAlpha = 0.6;
+ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
+ctx.fillText(`(${cityNameEn})`, x1 + imgWidth / 2, titleY + 26);
+ctx.globalAlpha = 1.0;
+
+// ---- 右侧（对跖点）三行排版 ----
+let currentY = titleY;
+
+// 第一行：国家名（18px）
+ctx.textAlign = 'center';
+ctx.textBaseline = 'top';
+ctx.fillStyle = textColor;
+ctx.font = '600 18px "Noto Serif SC", "Noto Sans SC", serif';
+ctx.fillText(antipodeCountry || '地球另一端', x2 + imgWidth / 2, currentY);
+
+// 省名转中文（如果匹配到省）
+// 使用英文省名映射到纯中文（不带国家）
+if (antipodeProvinceEn && PROVINCE_NAME_MAP[antipodeProvinceEn]) {
+    antipodeProvince = PROVINCE_NAME_MAP[antipodeProvinceEn];
+}
+// 如果没有英文省名，则使用原始值（可能是中文，也可能是英文）
+// 但最好保留原值，不过此处不再处理，因为上面已经映射了
+
+const hasProvince = antipodeProvince && antipodeProvince.trim();
+
+if (hasProvince) {
+    // 第二行：省名（16px，小两号）
+    currentY += 26;
     ctx.fillStyle = textColor;
-    ctx.font = '600 18px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText(`${city.name_cn}`, x1 + imgWidth / 2, titleY);
-    ctx.fillText(`${city.antipode_name || '地球另一端'}`, x2 + imgWidth / 2, titleY);
+    ctx.globalAlpha = 0.85;
+    ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillText(antipodeProvince, x2 + imgWidth / 2, currentY);
 
+    // 第三行：英文省名（14px，括号，不带国家）
+    if (antipodeProvinceEn) {
+        currentY += 24;
+        ctx.fillStyle = textColor;
+        ctx.globalAlpha = 0.45;
+        ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
+        ctx.fillText(`(${antipodeProvinceEn})`, x2 + imgWidth / 2, currentY);
+        ctx.globalAlpha = 1.0;
+    }
+} else {
+    // 没有省名 → 第二行显示英文国家名（与左侧格式一致）
+    currentY += 26;
     ctx.fillStyle = textColor;
     ctx.globalAlpha = 0.6;
     ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText(`(${cityNameEn})`, x1 + imgWidth / 2, titleY + 26);
-    ctx.fillText(antiNameEn ? `(${antiNameEn})` : '', x2 + imgWidth / 2, titleY + 26);
+    const countryEn = antipodeCountryEn || antipodeCountry;
+    ctx.fillText(`(${countryEn})`, x2 + imgWidth / 2, currentY);
     ctx.globalAlpha = 1.0;
+}
 
-                // ===== 5. 人文短句 =====
-    const maxWidth = W - 48;
-    const poemY = titleY + 78;
-    const gift = window._currentGift;
-    const hasGift = gift && gift.name;
+// 🔧 修改：天气行移除，改为在这里绘制（与城市名/国家名同一行）
+// 原点天气（显示在左侧城市名右侧，靠近中部）
+const weatherOrigin = window._originWeather;
+const weatherAnti = window._antipodeWeather;
+
+if (weatherOrigin) {
+    const originInfo = getWeatherInfo(weatherOrigin.weathercode);
+    const originTemp = Math.round(weatherOrigin.temperature);
+    const weatherText = `${originInfo.icon} ${originTemp}°C`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.75;
+    // 绘制在左侧邮票右边缘左侧 8px（缩进一个字）
+    const leftEdge = x1 + imgWidth;
+    ctx.fillText(weatherText, leftEdge - 8, titleY);
+    ctx.globalAlpha = 1.0;
+}
+
+// 对跖点天气（显示在右侧国家名左侧，靠近中部）
+if (weatherAnti) {
+    const antiInfo = getWeatherInfo(weatherAnti.weathercode);
+    const antiTemp = Math.round(weatherAnti.temperature);
+    const weatherText = `${antiInfo.icon} ${antiTemp}°C`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.75;
+    // 绘制在右侧邮票左边缘右侧 8px（缩进一个字）
+    const rightEdge = x2;
+    ctx.fillText(weatherText, rightEdge + 8, titleY);
+    ctx.globalAlpha = 1.0;
+}
+
+// ---- 🔧 修改：移除原独立天气行代码，直接计算 poemY ----
+// ---- 计算 poemY（统一所有卡片，整体下移两行） ----
+// 基础偏移：城市名两行高度 52px + 间距 6px + 下移两行（约 52px）
+// 不再依赖 hasProvince 做偏移，统一高度，消除诗句位置不一致
+const baseOffset = 95;  // 100 - 5 = 95，所有诗句再上移 5px
+const poemY = titleY + baseOffset;
+               // ===== 5. 人文短句 =====
+const maxWidth = W - 48;
+// poemY 已在上面计算好，直接使用
+const currentGift = window._currentGift ? JSON.parse(JSON.stringify(window._currentGift)) : null;
+// 存入全局，供分享卡按钮使用
+window._lastShareCardData = { city: city, gift: currentGift };
+
+const hasGift = currentGift && currentGift.name;
+
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -2146,10 +3155,17 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
         poemCN = DEFAULT_POEM_CN;
     }
 
+    // 🔧 修改：如果有物产，只取第一行中文，不显示英文
+    if (hasGift) {
+        const lines = poemCN.split('\n');
+        poemCN = lines[0] || DEFAULT_POEM_CN;
+    }
+
     // 检查是否包含换行符（说明 poem 中嵌入了英文）
     const hasEmbeddedEN = poemCN.includes('\n');
     let lineY = poemY;
-
+// 在 poemY 之后，if (hasEmbeddedEN) 之前声明
+let hasShownEmbeddedEN = false;
     if (hasEmbeddedEN) {
         // ---- 有嵌入英文：拆分成中文和英文分别绘制 ----
         const parts = poemCN.split('\n');
@@ -2178,7 +3194,7 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
             });
         }
         // 已显示嵌入的英文，标记不再单独显示英文
-        var hasShownEmbeddedEN = true;
+        hasShownEmbeddedEN = true;
     } else {
         // ---- 没有嵌入英文：正常显示中文 ----
         ctx.fillStyle = textColor;
@@ -2189,7 +3205,7 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
             ctx.fillText(line, W / 2, lineY);
             lineY += 30;
         });
-        var hasShownEmbeddedEN = false;
+        hasShownEmbeddedEN = false;
     }
 
     // ---- 英文诗句（仅在无物产、且没有嵌入英文时单独显示） ----
@@ -2212,7 +3228,7 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
     ctx.globalAlpha = 1.0;
 
         // ===== 6. 物产区域 或 底部标语 =====
-    let currentY = lineY + 12;
+currentY = lineY + 12;
     const bottomBrandY = H - 44;
     // gift 和 hasGift 已在第 5 部分声明，直接使用
 
@@ -2221,17 +3237,17 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
         const imgSize = 180;
         // 右图中心 X 坐标（对跖点地图中心）
         const rightMapCenterX = x2 + imgWidth / 2;
-        const imgX = rightMapCenterX - imgSize / 2 + 16;  // 向右移动 16px（约两个中文字宽度）
-        const imgY = currentY;
-        const textX = 24;
+        const imgX = rightMapCenterX - imgSize / 2 + 16;  // 向右移动 16px
+const imgY = currentY;  // 整体下移 15px（原 -15 → 0）
+const textX = 24;
         // 文字区域最大宽度（图片左侧 - 文字左侧 - 间距）
         const maxTextWidth = imgX - textX - 16;
 
         // ---------- 加载物产图片 ----------
-        let productImg = null;
-        if (gift.image) {
-            productImg = await loadImage(gift.image);
-        }
+let productImg = null;
+if (currentGift && currentGift.image) {
+    productImg = await loadImageWithCache(currentGift.image);
+}
 
         // ---------- 绘制物产图片（右侧，无图框） ----------
 if (productImg) {
@@ -2252,7 +3268,7 @@ if (productImg) {
 }
 
         // ---------- 绘制左侧文字信息 ----------
-        let textY = imgY;
+      let textY = imgY - 5;  // 标题相对图片再上移 5px（原10px，向下移动5px）
         const lineHeight = 28;
 
         // 第一行：礼物标语（18px，斜体）
@@ -2268,48 +3284,48 @@ if (productImg) {
         let nameLineY = textY + lineHeight * 2;
 
         // 第二行：物产中文名（16px，斜体） + 英文名（14px，括号内）
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 1.0;
-        ctx.font = '600 16px "Noto Serif SC", "Noto Sans SC", serif';
-        const nameText = gift.name || '一份礼物';
-        ctx.fillText(nameText, textX, nameLineY);
+ctx.fillStyle = textColor;
+ctx.globalAlpha = 1.0;
+ctx.font = '600 17px "Noto Serif SC", "Noto Sans SC", serif';
+const nameText = currentGift.name || '一份礼物';
+ctx.fillText(nameText, textX, nameLineY);
 
-        if (gift.name_en) {
+if (currentGift.name_en) {
     ctx.fillStyle = textColor;
     ctx.globalAlpha = 0.5;
-    ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.font = '400 15px "Noto Serif SC", "Noto Sans SC", serif';
     const nameEnX = textX + ctx.measureText(nameText).width + 16;
-    ctx.fillText(`(${gift.name_en})`, nameEnX, nameLineY + 1);
+    ctx.fillText(`(${currentGift.name_en})`, nameEnX, nameLineY + 1);
 }
         ctx.globalAlpha = 1.0;
 
         // 第三行：物产文案中文（14px，斜体）
-        let descLineY = nameLineY + lineHeight;
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.7;
-        ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-       const descCN = gift.poemRipe || gift.description || '来自地球另一端的风物';
-        const descLines = wrapText(ctx, descCN, maxTextWidth);
-        descLines.forEach((line, i) => {
-            ctx.fillText(line, textX, descLineY + i * 22);
-        });
-        const descLinesCount = descLines.length;
+let descLineY = nameLineY + lineHeight;
+ctx.fillStyle = textColor;
+ctx.globalAlpha = 0.7;
+ctx.font = 'italic 400 15px "Noto Serif SC", "Noto Sans SC", serif';
+const descCN = currentGift.poemRipe || currentGift.description || '来自地球另一端的风物';
+const descLines = wrapText(ctx, descCN, maxTextWidth);
+descLines.forEach((line, i) => {
+    ctx.fillText(line, textX, descLineY + i * 22);
+});
+const descLinesCount = descLines.length;
 
-        // 第四行：物产文案英文（13px，斜体，半透明）
-        let enLineY = descLineY + descLinesCount * 22 + 4;
-        const descEN = gift.poemRipe_en || gift.description_en || '';
-        if (descEN && descEN.trim()) {
-            ctx.fillStyle = textColor;
-            ctx.globalAlpha = 0.4;
-            ctx.font = 'italic 400 13px "Noto Serif SC", "Noto Sans SC", serif';
-            const enLines = wrapText(ctx, descEN, maxTextWidth);
-            enLines.forEach((line, i) => {
-                ctx.fillText(line, textX, enLineY + i * 20);
-            });
-            currentY = enLineY + enLines.length * 20 + 20;
-        } else {
-            currentY = enLineY + 20;
-        }
+      // 第四行：物产文案英文（13px，斜体，半透明）
+let enLineY = descLineY + descLinesCount * 22 + 4;
+const descEN = currentGift.poemRipe_en || currentGift.description_en || '';
+if (descEN && descEN.trim()) {
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.4;
+    ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
+    const enLines = wrapText(ctx, descEN, maxTextWidth);
+    enLines.forEach((line, i) => {
+        ctx.fillText(line, textX, enLineY + i * 20);
+    });
+    currentY = enLineY + enLines.length * 20 + 20;
+} else {
+    currentY = enLineY + 20;
+}
 
         // 如果文字总高度小于图片高度，以图片高度为准
         const totalTextHeight = currentY - imgY;
@@ -2420,7 +3436,7 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
 
     ctx.restore();
 }
-        function loadImage(src) {
+       function loadImage(src) {
     return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -2433,6 +3449,26 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
             resolve(null);
         };
         img.src = src;
+    });
+}
+
+// ===== 图片内存缓存 =====
+const imageCache = new Map();
+
+function loadImageWithCache(src) {
+    if (!src) return Promise.resolve(null);
+    if (imageCache.has(src)) {
+        const cached = imageCache.get(src);
+        if (cached && cached.complete) {
+            console.log('✅ 图片命中缓存:', src);
+            return Promise.resolve(cached);
+        }
+    }
+    return loadImage(src).then(img => {
+        if (img) {
+            imageCache.set(src, img);
+        }
+        return img;
     });
 }
         function roundRect(ctx, x, y, w, h, r) {
@@ -2449,24 +3485,45 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
             ctx.closePath();
         }
 
-        function wrapText(ctx, text, maxWidth) {
-            if (!text) return [];
-            const words = text.split('');
-            const lines = [];
-            let currentLine = '';
-            for (const char of words) {
-                const testLine = currentLine + char;
-                const metrics = ctx.measureText(testLine);
-                if (metrics.width > maxWidth && currentLine.length > 0) {
-                    lines.push(currentLine);
-                    currentLine = char;
-                } else {
-                    currentLine = testLine;
-                }
+       function wrapText(ctx, text, maxWidth) {
+    if (!text) return [];
+    
+    // 检测是否包含中文字符
+    const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+    
+    if (hasChinese) {
+        // 中文：按字符切割（原逻辑）
+        const lines = [];
+        let currentLine = '';
+        for (const char of text) {
+            const testLine = currentLine + char;
+            if (ctx.measureText(testLine).width > maxWidth && currentLine.length > 0) {
+                lines.push(currentLine);
+                currentLine = char;
+            } else {
+                currentLine = testLine;
             }
-            if (currentLine) lines.push(currentLine);
-            return lines;
         }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    } else {
+        // 英文：按单词切割
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            if (ctx.measureText(testLine).width > maxWidth && currentLine.length > 0) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    }
+}
                
                       // ===== 分享卡按钮 =====
         document.getElementById('shareBtn').addEventListener('click', function() {
@@ -2927,7 +3984,7 @@ function drawTeardropOnCanvas(ctx, cx, cy, color, size) {
             antipodeMap.add(initBlue);
 
             // PlaceSearch
-            AMap.plugin(['AMap.PlaceSearch'], function() {
+          AMap.plugin(['AMap.PlaceSearch'], function() {
                 placeSearch = new AMap.PlaceSearch({
                     city: '全国',
                     type: '风景名胜|地名地址信息',
@@ -2991,69 +4048,226 @@ const DEFAULT_POEM_CN = '「这一刻，你与地球背面，同频呼吸。」'
 const DEFAULT_POEM_EN = 'In this moment, you breathe in sync with the far side of the earth.';
 
                 // ===== 初始化 =====
-       // ===== 初始化应用（不再依赖 DOMContentLoaded） =====
+      // ===== 初始化应用（不再依赖 DOMContentLoaded） =====
 function initApp() {
     applyBranding();
     fixQQBrowser();
-    document.getElementById('searchBtn').onclick = function() {
-        searchLocation(document.getElementById('searchInput').value.trim());
-    };
-    document.getElementById('locationBtn').onclick = getMyLocation;
-    document.getElementById('randomBtn').onclick = randomTravel;
-    document.getElementById('rankingBtn').onclick = loadRanking;
-    document.getElementById('searchInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            var keyword = this.value.trim();
-            if (keyword) searchLocation(keyword);
-        }
-    });
+
+    
+    // ===== 新增：加载文案数据（八大区通用短句 + 天气反差文案） =====
+    loadPoemData();
+    
+    // ===== 搜索防抖（避免快速连续搜索） =====
+let searchDebounceTimer = null;
+
+document.getElementById('searchBtn').onclick = function() {
+    const keyword = document.getElementById('searchInput').value.trim();
+    if (!keyword) return;
+    
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(function() {
+        searchLocation(keyword);
+    }, 300);
+};
+
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const keyword = this.value.trim();
+        if (!keyword) return;
+        
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(function() {
+            searchLocation(keyword);
+        }, 300);
+    }
+});
     updateHistoryList();
-// ===== 预加载 GeoJSON 地图数据（提升分享卡生成速度） =====
+    // ===== 预加载 GeoJSON 地图数据（提升分享卡生成速度） =====
     if (!worldMapData) {
         fetch('/data/land-110m.geojson')
             .then(res => res.json())
             .then(data => { worldMapData = data; })
             .catch(() => { console.warn('预加载 GeoJSON 失败，分享卡生成时会重试'); });
     }
-    // ===== 太阳/月亮切换（同时支持 Cesium 和 Three.js） =====
-const dayNightToggle = document.getElementById('dayNightToggle');
-const sunIcon = document.getElementById('sunIcon');
-const moonIcon = document.getElementById('moonIcon');
-
-if (dayNightToggle) {
-    dayNightToggle.addEventListener('click', function() {
-        // 判断当前模式：太阳显示中 → 切换到夜间
-        const isNight = sunIcon.style.display !== 'none';
-        const newMode = isNight;
-        
-        // 切换图标
-        sunIcon.style.display = isNight ? 'none' : 'block';
-        moonIcon.style.display = isNight ? 'block' : 'none';
-        this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
-        
-        // 1. 如果是桌面端（Cesium 已加载），切换 Cesium
-        if (window.__toggleCesiumDayNight) {
-            window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
-            console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
+    // ===== 新增：预加载对跖点数据 =====
+    if (typeof loadAntipodeData === 'function') {
+        loadAntipodeData().then(() => {
+            console.log('✅ 对跖点数据已预加载');
+        }).catch(() => {
+            console.warn('⚠️ 对跖点数据预加载失败，将使用降级方案');
+        });
+    }
+// ===== 确保 window.getRegion 可用（兜底） =====
+if (typeof window.getRegion !== 'function') {
+    console.warn('⚠️ window.getRegion 未定义，使用内联 fallback');
+    window.getRegion = function(lat, lng) {
+        function isSouthAmericaLand(lat, lng) {
+            return lat > -55 && lat < 12 && lng > -82 && lng < -34;
         }
-        
-        // 2. 如果是移动端（Three.js），向 globe.html 发送消息
-        const earthFrame = document.getElementById('earthFrame');
-        if (earthFrame && earthFrame.contentWindow) {
-            earthFrame.contentWindow.postMessage({
-                type: 'toggle-day-night',
-                isNightMode: newMode
-            }, '*');
-            console.log(`🌓 Three.js 切换至 ${newMode ? '夜间' : '日间'}`);
-        }
-        
-        // 3. 兜底：如果两者都不存在，仅切换图标（但这种情况不应该发生）
-        if (!window.__toggleCesiumDayNight && !earthFrame) {
-            console.warn('⚠️ 没有可用的地球引擎，仅切换图标');
-        }
-    });
+        var REGION_BOUNDS = {
+            northernChile: {
+                name: '北智利',
+                nameEn: 'Northern Chile',
+                latMin: -27,
+                latMax: -18,
+                lngMin: -72,
+                lngMax: -68
+            },
+            centralChile: {
+                name: '中智利',
+                nameEn: 'Central Chile',
+                latMin: -37,
+                latMax: -27,
+                lngMin: -72,
+                lngMax: -68
+            },
+            southernChile: {
+                name: '南智利',
+                nameEn: 'Southern Chile',
+                latMin: -55,
+                latMax: -37,
+                lngMin: -76,
+                lngMax: -68
+            },
+            pampas: {
+                name: '布宜诺斯艾利斯 / 潘帕斯草原',
+                nameEn: 'Buenos Aires / Pampas',
+                latMin: -40,
+                latMax: -28,
+                lngMin: -64,
+                lngMax: -56
+            },
+            mendoza: {
+                name: '门多萨 / 安第斯山麓',
+                nameEn: 'Mendoza / Andean Foothills',
+                latMin: -37,
+                latMax: -27,
+                lngMin: -70,
+                lngMax: -66
+            },
+            patagonia: {
+                name: '巴塔哥尼亚',
+                nameEn: 'Patagonia',
+                latMin: -55,
+                latMax: -40,
+                lngMin: -72,
+                lngMax: -64
+           },
+// ===== 新增：亚马孙雨林 =====
+    amazon: {
+        name: '亚马孙/内陆雨林',
+        nameEn: 'Amazon / Inland Rainforest',
+        latMin: -10,
+        latMax: 3,
+        lngMin: -74,
+        lngMax: -50
+    }
+};
+// ===== 新增：长尾国家兜底映射 =====
+function getFallbackZoneByCountry(countryName) {
+    var map = {
+        '玻利维亚': 'andes',
+        '巴拉圭': 'pampas',
+        '乌拉圭': 'pampas',
+        '秘鲁': 'andes',
+        '厄瓜多尔': 'andes',
+        '哥伦比亚': 'amazon',
+        '委内瑞拉': 'amazon',
+        '圭亚那': 'amazon',
+        '苏里南': 'amazon',
+    };
+    return map[countryName] || null;
 }
+        // ===== 1. 太平洋优先判断（与 server.js 的 getApproximateName 保持一致） =====
+if (lng < -72 && lat > -55 && lat < -12) {
+    return { id: 'pacific', name: '太平洋', nameEn: 'Pacific Ocean' };
+}
+
+// ===== 2. 东海岸外海（南纬35度以南，经度 < -52） =====
+// 阿根廷东海岸和巴塔哥尼亚以东的大西洋海域
+// 覆盖沈阳（-41.79, -56.61）、哈尔滨（-45.76, -53.37）等
+// 东海岸外海：只覆盖真正的大西洋海域（-58 到 -52 之间）
+// 沈阳（-41.79, -56.61）和哈尔滨（-45.76, -53.37）会被捕获
+// 北京（-39.90, -63.59）和包头（-40.65, -70.33）不会被捕获
+if (lat < -35 && lng >= -58 && lng < -52) {
+    return { id: 'atlantic', name: '大西洋', nameEn: 'Atlantic Ocean' };
+}
+
+// ===== 3. 大西洋判断 =====
+if (lng >= -75 && lng <= -10 && !isSouthAmericaLand(lat, lng)) {
+    return { id: 'atlantic', name: '大西洋', nameEn: 'Atlantic Ocean' };
+}
+        if (!isSouthAmericaLand(lat, lng)) {
+            return { id: 'pacific', name: '太平洋', nameEn: 'Pacific Ocean' };
+        }
+        for (var id in REGION_BOUNDS) {
+            var bounds = REGION_BOUNDS[id];
+            if (lat >= bounds.latMin && lat <= bounds.latMax &&
+                lng >= bounds.lngMin && lng <= bounds.lngMax) {
+                return { id: id, name: bounds.name, nameEn: bounds.nameEn };
+            }
+        }
+// ===== 6. 长尾国家/地区兜底（新增） =====
+    // 先获取国家名
+    if (typeof window.getAntipodeRegion === 'function') {
+        const regionInfo = window.getAntipodeRegion(lat, lng);
+        if (regionInfo && regionInfo.country) {
+            const zoneId = getFallbackZoneByCountry(regionInfo.country);
+            if (zoneId && REGION_BOUNDS[zoneId]) {
+                const bounds = REGION_BOUNDS[zoneId];
+                return { id: zoneId, name: bounds.name, nameEn: bounds.nameEn };
+            }
+        }
+    }
+    // ===== 7. 最终兜底：如果在南美洲但未匹配到具体大区 → 按纬度降级 =====
+
+        if (lat < -40) return { id: 'patagonia', name: '巴塔哥尼亚', nameEn: 'Patagonia' };
+        if (lat < -34) return { id: 'pampas', name: '潘帕斯草原', nameEn: 'Pampas' };
+        if (lat < -27) return { id: 'mendoza', name: '门多萨', nameEn: 'Mendoza' };
+        if (lat < -18) return { id: 'centralChile', name: '中智利', nameEn: 'Central Chile' };
+        return { id: 'northernChile', name: '北智利', nameEn: 'Northern Chile' };
+    };
+}
+
+    // ===== 太阳/月亮切换（同时支持 Cesium 和 Three.js） =====
+    const dayNightToggle = document.getElementById('dayNightToggle');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+
+    if (dayNightToggle) {
+        dayNightToggle.addEventListener('click', function() {
+            // 判断当前模式：太阳显示中 → 切换到夜间
+            const isNight = sunIcon.style.display !== 'none';
+            const newMode = isNight;
+            
+            // 切换图标
+            sunIcon.style.display = isNight ? 'none' : 'block';
+            moonIcon.style.display = isNight ? 'block' : 'none';
+            this.title = isNight ? '切换到日间模式' : '切换到夜间模式';
+            
+            // 1. 如果是桌面端（Cesium 已加载），切换 Cesium
+            if (window.__toggleCesiumDayNight) {
+                window.__toggleCesiumDayNight(window.__cesiumViewer, newMode);
+                console.log(`🌓 Cesium 切换至 ${newMode ? '夜间' : '日间'}`);
+            }
+            
+            // 2. 如果是移动端（Three.js），向 globe.html 发送消息
+            const earthFrame = document.getElementById('earthFrame');
+            if (earthFrame && earthFrame.contentWindow) {
+                earthFrame.contentWindow.postMessage({
+                    type: 'toggle-day-night',
+                    isNightMode: newMode
+                }, '*');
+                console.log(`🌓 Three.js 切换至 ${newMode ? '夜间' : '日间'}`);
+            }
+            
+            // 3. 兜底：如果两者都不存在，仅切换图标（但这种情况不应该发生）
+            if (!window.__toggleCesiumDayNight && !earthFrame) {
+                console.warn('⚠️ 没有可用的地球引擎，仅切换图标');
+            }
+        });
+    }
 
     // 高德地图加载
     window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY };
@@ -3101,7 +4315,7 @@ const isDesktop = !isMobile && window.innerWidth > 1024;
 
             try {
                 // 动态导入 cesium-earth.js（使用相对路径）
-                const module = await import('./cesium-earth.js');
+              const module = await import('./cesium-earth.js?v=20260710');
                 const { shouldUseCesium, initCesiumEarth, updateCesiumEarth, cesiumViewer } = module;
 
                 if (!shouldUseCesium()) {

@@ -1,0 +1,154 @@
+{
+  "northernChile": {
+    "id": "northernChile",
+    "name": "北智利",
+    "nameEn": "Northern Chile",
+    "poems": [
+      {
+        "cn": "你呼吸的此刻，阿塔卡马的星空正越过地心，与你遥遥对望。",
+        "en": "As you breathe, the stars of Atacama gaze across the earth's core, meeting you from afar."
+      },
+      {
+        "cn": "百年无雨的沙漠风，正吹过地球的另一端。",
+        "en": "A century of dry desert wind blows across the far side of the planet."
+      },
+      {
+        "cn": "银河垂在旱极上空，和你头顶的夜空遥遥相应。",
+        "en": "The Milky Way hangs low over the driest place on earth, echoing the night sky above you."
+      }
+    ]
+  },
+  "centralChile": {
+    "id": "centralChile",
+    "name": "中智利",
+    "nameEn": "Central Chile",
+    "poems": [
+      {
+        "cn": "这一刻，你与安第斯山麓的葡萄园，正隔着地心同频呼吸。",
+        "en": "In this moment, you breathe in sync with the Andean vineyards, across the core of the earth."
+      },
+      {
+        "cn": "雪水顺着山坳淌进山谷，滋养着地球背面的每一颗葡萄。",
+        "en": "Snowmelt runs down the mountain slopes, feeding every grape on the far side of the world."
+      },
+      {
+        "cn": "瓦尔帕莱索的海浪声，正和你耳边的风遥遥相应。",
+        "en": "The sound of waves in Valparaíso echoes the wind at your ear."
+      }
+    ]
+  },
+  "southernChile": {
+    "id": "southernChile",
+    "name": "南智利",
+    "nameEn": "Southern Chile",
+    "poems": [
+      {
+        "cn": "你站在原地的此刻，巴塔哥尼亚的冰川正静默着，与你共享同一段时光。",
+        "en": "As you stand where you are, the Patagonian glaciers lie silent, sharing this same moment with you."
+      },
+      {
+        "cn": "南极来的寒流穿过峡湾，游过地球另一端的深海。",
+        "en": "The cold Antarctic current winds through the fjords, cutting through the deep sea on the far side."
+      },
+      {
+        "cn": "冰川碎裂的轻响，顺着风漫过世界的尽头。",
+        "en": "The faint crack of glacial ice drifts on the wind, across the edge of the world."
+      }
+    ]
+  },
+  "pampas": {
+    "id": "pampas",
+    "name": "布宜诺斯艾利斯 / 潘帕斯草原",
+    "nameEn": "Buenos Aires / Pampas",
+    "poems": [
+      {
+        "cn": "这一刻，你与潘帕斯的野草，正隔着整个地球同频晃动。",
+        "en": "In this moment, you sway in sync with the Pampas grass, across the entire planet."
+      },
+      {
+        "cn": "博尔赫斯笔下的月光，正落在地球另一端的街角。",
+        "en": "The moonlight in Borges' words falls on a street corner on the far side of the earth."
+      },
+      {
+        "cn": "烤肉的香气混着探戈声，漫过整片草原的黄昏。",
+        "en": "The scent of asado mixes with tango music, drifting across the dusk of the whole plain."
+      }
+    ]
+  },
+  "mendoza": {
+    "id": "mendoza",
+    "name": "门多萨 / 安第斯山麓",
+    "nameEn": "Mendoza / Andean Foothills",
+    "poems": [
+      {
+        "cn": "你举杯的瞬间，门多萨的葡萄正晒着高海拔的太阳，与你共享同一份日光。",
+        "en": "The moment you raise your glass, Mendoza's grapes soak up high-altitude sun, sharing the same daylight with you."
+      },
+      {
+        "cn": "安第斯的融雪顺着沟渠流进葡萄园，凉丝丝地漫过地球背面。",
+        "en": "Andean snowmelt trickles through ditches into the vineyards, cool and crisp across the far side."
+      },
+      {
+        "cn": "每一颗马尔贝克里，都藏着雪山的影子和高原的风。",
+        "en": "Every Malbec grape holds the shadow of snow peaks and the wind of the high plains."
+      }
+    ]
+  },
+  "patagonia": {
+    "id": "patagonia",
+    "name": "阿根廷巴塔哥尼亚",
+    "nameEn": "Argentinian Patagonia",
+    "poems": [
+      {
+        "cn": "你裹紧外套的此刻，巴塔哥尼亚的荒原风正掠过雪山，与你遥遥同凉。",
+        "en": "As you pull your coat tighter, the Patagonian steppe wind sweeps past the snow peaks, sharing the same chill with you from afar."
+      },
+      {
+        "cn": "雪山脚下的小镇里，热巧克力的甜香飘在空气里。",
+        "en": "In the town below the peaks, the sweet smell of hot chocolate hangs in the air."
+      },
+      {
+        "cn": "冷水鱼游过澄澈的湖面，倒影里是终年不化的雪。",
+        "en": "Cold-water fish glide across clear lakes, snow-capped peaks mirrored on the surface."
+      }
+    ]
+  },
+  "pacific": {
+    "id": "pacific",
+    "name": "南太平洋",
+    "nameEn": "South Pacific Ocean",
+    "poems": [
+      {
+        "cn": "你望向远处的此刻，南太平洋的浪正一起一落，与你同频呼吸。",
+        "en": "As you gaze into the distance, the South Pacific waves rise and fall, breathing in sync with you."
+      },
+      {
+        "cn": "一场没人看见的雨落在洋面，连回声都消散在风里。",
+        "en": "An unseen rain falls on the ocean, even its echo lost in the wind."
+      },
+      {
+        "cn": "洋流推着浪走了上万里，从没碰过一寸陆地。",
+        "en": "Currents carry waves for thousands of miles, never touching a single shore."
+      }
+    ]
+  },
+  "atlantic": {
+    "id": "atlantic",
+    "name": "南大西洋",
+    "nameEn": "South Atlantic Ocean",
+    "poems": [
+      {
+        "cn": "你听着风的此刻，南大西洋的海浪正缓缓起伏，与你隔着地心同频。",
+        "en": "As you listen to the wind, the South Atlantic waves roll slow, in sync with you across the earth's core."
+      },
+      {
+        "cn": "鲸鱼的长歌穿过远洋，慢慢飘向地球的另一端。",
+        "en": "The long song of whales travels across the open ocean, drifting toward the far side of the earth."
+      },
+      {
+        "cn": "海风带着咸意，越过潘帕斯的尽头吹向内陆。",
+        "en": "The sea breeze carries salt, drifting inland past the edge of the Pampas."
+      }
+    ]
+  }
+}

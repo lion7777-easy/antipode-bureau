@@ -6,15 +6,24 @@
   "scripts": {
     "start": "node server.js",
     "init": "node init-db.js",
-  "build:js": "terser public/js/main.js --compress passes=1 --mangle --reserved-names 'editCity,deleteCity,openCityModal,closeCityModal,refreshCities,filterCities,saveCity,uploadImage,openGiftModal,closeGiftModal,refreshGifts,saveGift,deleteGift,uploadGiftImage,loadStats,loadImages,exportData,generateShareCard,drawTeardropOnCanvas,loadImage,roundRect,wrapText,formatCoord,calculateAntipode,detectBrand,triggerGiftForLocation,getAntipodeRegion,showGift,TIANDITU_TK' --output public/js/main.min.js --ascii-only false"
+    "build:js": "terser public/js/main.js --compress passes=1 --mangle --reserved-names 'editCity,deleteCity,openCityModal,closeCityModal,refreshCities,filterCities,saveCity,uploadImage,openGiftModal,closeGiftModal,refreshGifts,saveGift,deleteGift,uploadGiftImage,loadStats,loadImages,exportData,generateShareCard,drawTeardropOnCanvas,loadImage,roundRect,wrapText,formatCoord,calculateAntipode,detectBrand,triggerGiftForLocation,getAntipodeRegion,showGift,TIANDITU_TK' --output public/js/main.min.js --ascii-only false"
   },
   "dependencies": {
+    "@fuzzysaj/nat-earth-geojson-cache": "^1.0.5",
+    "@turf/turf": "^7.3.5",
     "canvas": "^3.2.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.5.2",
+    "mapshaper": "^0.7.39",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.6.0",
     "pinyin": "^2.11.2",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "topojson": "^3.0.2",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1"
   },
   "devDependencies": {
     "terser": "^5.48.0"

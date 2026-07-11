@@ -127,7 +127,10 @@ async function initCesiumEarth(containerId) {
         viewer.scene.requestRenderMode = true;
         viewer.scene.maximumRenderTime = 1 / 30;
         viewer.cesiumWidget.creditContainer.style.display = 'none';
-
+// ===== 限制缩放范围 =====
+const controller = viewer.scene.screenSpaceCameraController;
+controller.minimumZoomDistance = 2000000;   // 最小距离 2000 公里
+controller.maximumZoomDistance = 100000000; // 最大距离 10 万公里
         // ---- 开启光照 ----
         viewer.scene.globe.enableLighting = true;
 

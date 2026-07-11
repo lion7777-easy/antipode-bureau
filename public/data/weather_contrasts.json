@@ -1,0 +1,210 @@
+{
+  "northernChile": {
+    "晴→雨": {
+      "cn": "你这边晴得透亮，阿塔卡马竟落了场百年难遇的细雨。",
+      "en": "It's bright and clear on your side, while a rare century drizzle falls on Atacama."
+    },
+    "雨→晴": {
+      "cn": "你窗外落着雨，阿塔卡马的沙漠正晒着太阳，夜里星空也会更亮。",
+      "en": "Rain taps your window, while the Atacama desert basks in sun — the stars will shine even brighter tonight."
+    },
+    "高温→低温": {
+      "cn": "你熬着酷暑，阿塔卡马的夜晚正浸着沙漠独有的凉意。",
+      "en": "You're sweltering in the heat, while Atacama nights cool down with that desert chill."
+    },
+    "低温→高温": {
+      "cn": "你裹着厚衣，阿塔卡马的白日正烧着盛夏的日光。",
+      "en": "You're bundled up warm, while Atacama bakes in mid-summer daylight."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里落着雪，阿塔卡马的沙丘上连雨都少见，更别提雪。",
+      "en": "Snow falls where you are, while even rain is rare on Atacama's dunes, let alone snow."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没飘雪，阿塔卡马的沙丘上连雨都少见，更别提雪了。",
+      "en": "No snow yet on your side, while even rain is rare on Atacama's dunes, let alone snow."
+    }
+  },
+  "centralChile": {
+    "晴→雨": {
+      "cn": "你这边晴空万里，瓦尔帕莱索正落着潮润的海雨。",
+      "en": "Clear skies above you, while damp coastal rain falls on Valparaíso."
+    },
+    "雨→晴": {
+      "cn": "你窗外雨不停，中央山谷的葡萄园正浸在透亮的阳光里。",
+      "en": "Rain pours outside your window, while Central Valley vineyards glow in bright sun."
+    },
+    "高温→低温": {
+      "cn": "你顶着暑气，圣地亚哥正吹着从安第斯山下来的凉风。",
+      "en": "You're stuck in the swelter, while cool Andean winds blow through Santiago."
+    },
+    "低温→高温": {
+      "cn": "你裹着寒意，葡萄正晒着盛夏的日光，慢慢攒着糖分。",
+      "en": "You're wrapped in chill, while grapes ripen and build sugar in the summer sun."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里飘着雪，瓦尔帕莱索的海边还吹着夏末温温的风。",
+      "en": "Snow drifts where you are, while late summer breezes still blow warm along Valparaíso's coast."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没飘雪，安第斯山的巅已经积了薄薄一层新雪。",
+      "en": "No snow yet on your side, while fresh dustings settle on the Andean peaks."
+    }
+  },
+  "southernChile": {
+    "晴→雨": {
+      "cn": "你这边天朗气清，南智利的峡湾正飘着夹雪的冷雨。",
+      "en": "Clear skies on your side, while sleety cold rain drifts through southern Chile's fjords."
+    },
+    "雨→晴": {
+      "cn": "你窗外阴着雨，巴塔哥尼亚的冰川正映着晴光。",
+      "en": "Gloomy rain outside your window, while Patagonian glaciers shine in clear sun."
+    },
+    "高温→低温": {
+      "cn": "你熬着三伏天，峡湾正处在一年里最冷的时节。",
+      "en": "You're in the dog days of summer, while the fjords hit their coldest time of year."
+    },
+    "低温→高温": {
+      "cn": "你裹着深冬的寒，南智利正过着短暂又透亮的夏日。",
+      "en": "You're deep in winter cold, while southern Chile has its short, bright summer days."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里落着大雪，峡湾入海口还飘着冷雨，没凝成雪。",
+      "en": "Heavy snow traps you indoors, while cold rain falls at the fjord mouths, not yet turned to snow."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没见雪，巴塔哥尼亚的峡湾已经落了头一场雪。",
+      "en": "No snow yet on your side, while the first snow falls on Patagonia's fjords."
+    }
+  },
+  "pampas": {
+    "晴→雨": {
+      "cn": "你头顶艳阳高照，潘帕斯正落着一场慢悠悠的长雨，像马孔多的下午。",
+      "en": "Bright sun above you, while a slow, long rain falls on the Pampas — like an afternoon in Macondo."
+    },
+    "雨→晴": {
+      "cn": "你窗外雨淅淅沥沥，潘帕斯草原正晒着太阳，风里全是青草味。",
+      "en": "Drizzle taps your window, while the Pampas bake in sun, the wind smelling of fresh grass."
+    },
+    "高温→低温": {
+      "cn": "你顶着盛夏的热，潘帕斯的草正泛着枯黄，吹着初冬的风。",
+      "en": "You're in peak summer heat, while the Pampas fade to gold in early winter winds."
+    },
+    "低温→高温": {
+      "cn": "你裹着冬衣，潘帕斯的草正疯长，盛夏的风暖乎乎的。",
+      "en": "You're bundled in winter clothes, while Pampas grass grows wild in warm summer winds."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里飘着鹅毛雪，潘帕斯草原上连霜都少见。",
+      "en": "Thick snow falls where you are, while even frost is rare on the Pampas."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没飘雪，潘帕斯草原上连霜都少见，更别提雪了。",
+      "en": "No snow yet on your side, while even frost is rare on the Pampas, let alone snow."
+    }
+  },
+  "mendoza": {
+    "晴→雨": {
+      "cn": "你这边晴得透亮，门多萨的葡萄园正落着细碎的细雨。",
+      "en": "Bright clear sun on your side, while fine light drizzle falls on Mendoza's vineyards."
+    },
+    "雨→晴": {
+      "cn": "你窗外阴着雨，门多萨的葡萄正晒着高海拔的日光。",
+      "en": "Gloomy rain outside your window, while Mendoza's grapes soak up high-altitude sunlight."
+    },
+    "高温→低温": {
+      "cn": "你熬着酷暑，山麓正吹着雪山上下来的凉风。",
+      "en": "You're sweltering through summer, while cool mountain winds blow down the Andean foothills."
+    },
+    "低温→高温": {
+      "cn": "你裹着寒意，葡萄正晒着盛夏的光，慢慢攒着果香。",
+      "en": "You're wrapped in chill, while grapes build aroma and sugar in mid-summer sun."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里落着雪，山下的葡萄园里还只是微凉的雨。",
+      "en": "Snow falls where you are, while only cool light rain falls on the valley vineyards."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没飘雪，安第斯山的雪线又往山麓靠近了一点。",
+      "en": "No snow yet on your side, while the Andean snowline creeps closer to the foothills."
+    }
+  },
+  "patagonia": {
+    "晴→雨": {
+      "cn": "你这边风和日丽，巴塔哥尼亚正刮着带雨的狂风。",
+      "en": "Calm sunny weather on your side, while wild rainy winds howl across Patagonia."
+    },
+    "雨→晴": {
+      "cn": "你窗外雨不停，巴塔哥尼亚的雪山正映着晴光。",
+      "en": "Nonstop rain outside your window, while Patagonia's snow peaks glow in clear sun."
+    },
+    "高温→低温": {
+      "cn": "你顶着三伏的热，荒原正刮着刺骨的寒风。",
+      "en": "You're in the summer heat, while biting cold winds sweep the Patagonian steppe."
+    },
+    "低温→高温": {
+      "cn": "你裹着深冬的寒，巴塔哥尼亚正过着一年里最暖和的日子。",
+      "en": "You're deep in winter cold, while Patagonia has its warmest days of the year."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里大雪封路，巴塔哥尼亚的湖畔还吹着凉风，没见雪。",
+      "en": "Heavy snow blocks the roads where you are, while cool wind blows by Patagonian lakes, no snow in sight."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没飘雪，巴塔哥尼亚的荒原已经盖了厚厚的雪。",
+      "en": "No snow yet on your side, while thick snow covers the Patagonian steppe."
+    }
+  },
+  "pacific": {
+    "晴→雨": {
+      "cn": "你这边晴空万里，南太平洋的海面正落着一场无声的雨。",
+      "en": "Clear skies above you, while a silent rain falls on the South Pacific surface."
+    },
+    "雨→晴": {
+      "cn": "你窗外雨淅沥，南太平洋的海面正闪着碎金似的阳光。",
+      "en": "Drizzle taps your window, while sunlight glints like scattered gold on the South Pacific."
+    },
+    "高温→低温": {
+      "cn": "你熬着酷暑，秘鲁寒流裹着南极的寒意，正扫过洋面。",
+      "en": "You're sweltering in the heat, while the frigid Humboldt Current sweeps across the ocean, carrying Antarctic chill."
+    },
+    "低温→高温": {
+      "cn": "你裹着寒意，南太平洋的海面正晒着盛夏的日光。",
+      "en": "You're wrapped in chill, while the South Pacific surface basks in summer sunlight."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里落着雪，南太平洋的海面只飘着冷雨，凝不成雪。",
+      "en": "Snow falls where you are, while only cold rain drifts over the South Pacific, never turning to snow."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没见雪，南太平洋的最南端正飘着细碎的雪粒。",
+      "en": "No snow yet on your side, while fine snow grains drift over the far southern Pacific."
+    }
+  },
+  "atlantic": {
+    "晴→雨": {
+      "cn": "你这边天朗气清，南大西洋的洋面上正落着一场远洋的雨。",
+      "en": "Clear skies on your side, while an ocean rain falls on the South Atlantic."
+    },
+    "雨→晴": {
+      "cn": "你窗外阴着雨，南大西洋的海面正映着透亮的天光。",
+      "en": "Gloomy rain outside your window, while clear light reflects off the South Atlantic surface."
+    },
+    "高温→低温": {
+      "cn": "你顶着暑气，南大西洋的海水正浸着冬日的凉意。",
+      "en": "You're stuck in the heat, while South Atlantic waters hold the chill of winter."
+    },
+    "低温→高温": {
+      "cn": "你裹着冬衣，南大西洋的海面正晒着暖融融的夏日阳光。",
+      "en": "You're bundled in winter clothes, while the South Atlantic basks in warm summer sun."
+    },
+    "下雪→未下雪": {
+      "cn": "你这里落着雪，南大西洋的海面只飘着冷雨。",
+      "en": "Snow falls where you are, while only cold rain drifts over the South Atlantic."
+    },
+    "未下雪→下雪": {
+      "cn": "你这边还没见雪，南大西洋的最南端正飘着湿冷的雪。",
+      "en": "No snow yet on your side, while damp cold snow falls over the far southern Atlantic."
+    }
+  }
+}
