@@ -30,7 +30,6 @@
     </style>
 </head>
 <body>
-    <div id="info"></div>
     <script type="importmap">
         {
             "imports": {
@@ -381,8 +380,12 @@ controls.update();
             controls.autoRotate = false;
             setTimeout(() => { controls.autoRotate = true; }, 2000);
 
-           document.getElementById('info').innerHTML =
-    `📍 ${formatCoord(originLat, originLng)} &nbsp;&nbsp;↔️&nbsp;&nbsp; 🌎 ${formatCoord(antipodeLat, antiLng)}`;
+           const infoEl = document.getElementById('info');
+if (infoEl) {
+    infoEl.innerHTML = `📍 ${formatCoord(originLat, originLng)} &nbsp;&nbsp;↔️&nbsp;&nbsp; 🌎 ${formatCoord(antipodeLat, antiLng)}`;
+} else {
+    console.warn('⚠️ #info 元素不存在，跳过坐标显示');
+}
 
             updateDayNightMode(currentMode);
         }
