@@ -153,6 +153,32 @@
             font-family: monospace;
             color: rgba(245,240,232,0.6);
         }
+.ranking-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+.ranking-tabs .rank-tab {
+    padding: 6px 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: rgba(245,240,232,0.5);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    font-family: inherit;
+    height: auto;
+}
+.ranking-tabs .rank-tab.active {
+    background: #e8923a;
+    color: #fff;
+    border-color: #e8923a;
+}
+.ranking-tabs .rank-tab:hover {
+    color: #f5f0e8;
+}
                .map-container, .iframe-container {
     width: 100%;
     background: #0d1a30;
@@ -1414,17 +1440,17 @@ body.is-mobile .share-modal { padding: 12px; }
                 <datalist id="historyList"></datalist>
                 <button id="searchBtn">🔍 搜索</button>
             </div>
-            <button id="locationBtn" class="location-btn">📍 我的位置</button>
-            <button id="randomBtn" class="random-btn">🗺️ 穿越</button>
+            <button id="locationBtn" class="location-btn" onclick="getMyLocation()">📍 我的位置</button>
+            <button id="randomBtn" class="random-btn" onclick="randomTravel()">🗺️ 穿越</button>
             <button id="rankingBtn" class="ranking-btn">🔥 热门探索</button>
         </div>
         <div class="three-col">
             <div class="card">
-                <div class="card-header"><span>📍 原始位置</span><span id="originCoord" class="coord">30.7448°N, 109.4755°E</span></div>
+                <div class="card-header"><span>📍 原位置</span><span id="originCoord" class="coord">30.7448°N, 109.4755°E</span></div>
                 <div id="originMap" class="map-container"></div>
             </div>
             <div class="card">
-                <div class="card-header"><span>🌐 3D 地球</span><span style="font-size:11px;font-weight:300;opacity:0.5;">🖱️ 可拖拽</span></div>
+                <div class="card-header"><span>🌐 3D 地球</span></div>
                    <div id="globeIframeContainer" class="iframe-container">
     <!-- 3D 地球 iframe（移动端使用） -->
     <iframe id="earthFrame" src="globe.html" title="3D Earth"></iframe>
@@ -1469,7 +1495,7 @@ body.is-mobile .share-modal { padding: 12px; }
            <div class="result-card" id="resultCard">
     <!-- ===== 独立框1：小红书 + 分享卡（第一页底部） ===== -->
     <div class="action-row">
-        <span class="hint">小红书 <span class="at">@对跖点漫游局</span></span>
+        <span class="hint"><span class="at">@对跖点漫游局</span></span>
         <div class="actions">
             <button class="share-btn" id="shareBtn">📤 生成分享卡</button>
         </div>
@@ -1546,14 +1572,20 @@ body.is-mobile .share-modal { padding: 12px; }
     </div>
     <!-- 排行榜 -->
     <div class="ranking-overlay" id="rankingOverlay">
-        <div class="ranking-modal">
-            <button class="close-btn" id="rankingCloseBtn">✕</button>
-            <div class="ranking-title">🔥 本周热门探索</div>
-            <ul class="ranking-list" id="rankingList">
-                <li style="text-align:center;color:rgba(245,240,232,0.3);padding:20px;">加载中...</li>
-            </ul>
-            <div class="ranking-footer">数据来源于每一次穿越探索 ✦</div>
-        </div>
+<div class="ranking-modal">
+    <button class="close-btn" id="rankingCloseBtn">✕</button>
+    <div class="ranking-title">🔥 热门探索</div>
+    <!-- ===== 新增选项卡 ===== -->
+    <div class="ranking-tabs">
+        <button class="rank-tab active" data-period="week">📅 本周</button>
+        <button class="rank-tab" data-period="month">📆 本月</button>
+        <button class="rank-tab" data-period="all">🏆 历史总榜</button>
+    </div>
+    <ul class="ranking-list" id="rankingList">
+        <li style="text-align:center;color:rgba(245,240,232,0.3);padding:20px;">加载中...</li>
+    </ul>
+    <div class="ranking-footer">数据来源于每一次穿越探索 ✦</div>
+</div>
     </div>
     <!-- 分享卡 -->
     <div class="share-overlay" id="shareOverlay">
@@ -1576,7 +1608,6 @@ body.is-mobile .share-modal { padding: 12px; }
         <button class="close-btn" id="popupCloseBtn">&times;</button>
         <div class="content" id="popupContent"></div>
         <div class="fun-fact" id="popupFact"></div>
-        <div class="hint">点击任意处关闭</div>
     </div>
 
 <!-- ===== 加载对跖点匹配模块（先加载） ===== -->

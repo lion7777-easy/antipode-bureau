@@ -292,11 +292,33 @@ app.get('/api/gifts', (req, res) => {
     });
 });
 app.get('/api/ranking', (req, res) => {
+    const { period = 'week' } = req.query;
+    let timeFilter = '';
+    const now = new Date();
+
+    switch (period) {
+        case 'week':
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+            weekStart.setHours(0, 0, 0, 0);
+            timeFilter = `AND created_at >= '${weekStart.toISOString()}'`;
+            break;
+        case 'month':
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            timeFilter = `AND created_at >= '${monthStart.toISOString()}'`;
+            break;
+        case 'all':
+        default:
+            timeFilter = ''; // 无时间过滤
+            break;
+    }
+
     const db = getDB();
     db.all(`
         SELECT city_name, COUNT(*) as count
         FROM search_logs
         WHERE city_name IS NOT NULL
+        ${timeFilter}
         GROUP BY city_name ORDER BY count DESC LIMIT 10
     `, (err, rows) => {
         db.close();

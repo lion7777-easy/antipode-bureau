@@ -110,9 +110,9 @@ function getVisualTheme(weatherZone) {
     };
     return nameMap[weatherZone] || 'fallback';
 }
+
 // ===== 搜索缓存（重复搜索同一城市秒开） =====
 const searchCache = new Map();
-let searchDebounceTimer = null;
 // ================================================================
 // ===== 工具函数 =====
 // ================================================================
@@ -1182,8 +1182,8 @@ function showCityPopup(spot) {
     const content = document.getElementById('popupContent');
     const fact = document.getElementById('popupFact');
     
-    const originImg = spot.originImage ? `<img src="${spot.originImage}" alt="${spot.name}" onerror="this.style.display='none'">` : '<div style="width:120%;aspect-ratio:1/1;margin:0 -10%;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(0,0,0,0.05);border-radius:16px;">🌍</div>';
-    const antipodeImg = spot.antipodeImage ? `<img src="${spot.antipodeImage}" alt="${spot.antipodeName}" onerror="this.style.display='none'">` : '<div style="width:120%;aspect-ratio:1/1;margin:0 -10%;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(0,0,0,0.05);border-radius:16px;">🌎</div>';
+    const originImg = spot.originImage ? `<img src="${spot.originImage}" alt="${spot.name}" onerror="this.style.display='none'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(0,0,0,0.05);border-radius:16px;">🌍</div>';
+    const antipodeImg = spot.antipodeImage ? `<img src="${spot.antipodeImage}" alt="${spot.antipodeName}" onerror="this.style.display='none'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(0,0,0,0.05);border-radius:16px;">🌎</div>';
     
     // 格式化对跖点名称（中文 + 英文括号）
     content.innerHTML = `
@@ -1541,21 +1541,6 @@ async function processGeocodeResult(lat, lng, keyword) {
     await handleSearchSuccess(lat, lng, keyword, tempCityData, originWeather, antipodeWeather);
 }       
 async function searchLocation(keyword, retryCount = 0) {
-    // 如果按钮处于禁用状态但 isSearching 为 false，强制启用（修复卡死）
-    if (!isSearching) {
-        const btn = document.getElementById('searchBtn');
-        if (btn && btn.disabled) {
-            btn.disabled = false;
-            btn.textContent = '🔍 搜索';
-            console.warn('⚠️ 按钮状态修复：强制启用');
-        }
-    }
-
-    // 如果正在搜索，忽略本次点击
-    if (isSearching) {
-        console.warn('⏳ 搜索正在进行，忽略本次点击');
-        return;
-    }
     window._currentGift = null;
     window._lastShareCardData = null;  // 清除旧的分享卡数据
     if (isSearching) return;
@@ -1641,7 +1626,7 @@ if (searchCache.has(cacheKey)) {
 }
     // ===== L2: 检查个人日限（100次/天） =====
     const countData = getTodayCount();
-    if (countData.count >= 100) {
+    if (countData.count >= 200) {
         alert('局长已力竭，明天再为您服务。');
         return;
     }
@@ -1996,17 +1981,14 @@ const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchKeyword)
         searchDebounceTimer = null;
     }
 
-    // 延迟重置，确保所有异步操作完成
-    setTimeout(() => {
-        isSearching = false;
-        const btn = document.getElementById('searchBtn');
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = '🔍 搜索';
-        }
-        showLoading(false);
-        console.log('✅ 搜索结束 - 按钮已重置');
-    }, 200);  // 增加到 200ms
+    isSearching = false;
+    const btn = document.getElementById('searchBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔍 搜索';
+    }
+    showLoading(false);
+    console.log('✅ 搜索结束 - 按钮已重置');
 }
         }
 
@@ -2886,14 +2868,20 @@ if (!city.origin_image && !city.antipode_image) {
 }
 
     // 对跖点坐标计算（供后续使用）
-    let antiLat = city.antipode_lat;
-    let antiLng = city.antipode_lng;
-    if (!antiLat || !antiLng) {
-        const anti = calculateAntipode(city.lat, city.lng);
-        antiLat = anti.lat;
-        antiLng = anti.lng;
-    }
-
+// ---- 对跖点坐标（优先使用数据库准确值，否则计算） ----
+let antiLat, antiLng;
+if (city.antipode_lat && city.antipode_lng && city.antipode_lat !== 0) {
+    // 数据库城市：使用存储的准确坐标
+    antiLat = city.antipode_lat;
+    antiLng = city.antipode_lng;
+    console.log(`📍 分享卡使用数据库对跖点坐标: ${antiLat}, ${antiLng}`);
+} else {
+    // 非数据库城市：计算对跖点
+    const anti = calculateAntipode(city.lat, city.lng);
+    antiLat = anti.lat;
+    antiLng = anti.lng;
+    console.log(`📍 分享卡计算对跖点坐标: ${antiLat}, ${antiLng}`);
+}
          // ---- 3b. 地图标签 + 经纬度 ----
     const originCoordText = formatCoord(city.lat, city.lng);
     const antiCoordText = formatCoord(antiLat, antiLng);
@@ -2905,7 +2893,7 @@ if (!city.origin_image && !city.antipode_image) {
     ctx.textAlign = 'left';
     const leftX = 24;
     ctx.font = '500 16px "Noto Serif SC", "Noto Sans SC", serif';
-    const leftLabel = '原位置';
+    const leftLabel = '原始位置';
     const leftLabelWidth = ctx.measureText(leftLabel).width;
     ctx.fillText(leftLabel, leftX, imgY + 10);
     ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
@@ -3084,107 +3072,57 @@ await drawStampWithMap(ctx, x2, y, imgWidth,
        // ===== 4. 城市名 =====
 const titleY = y + imgHeight + 6;
 
-// ---- 获取对跖点显示名称（数据库优先） ----
+// ---- 获取对跖点显示名称（统一处理，区分数据库和非数据库） ----
 const dbName = city.antipode_name || '';
 const dbNameEn = city.antipode_name_en || '';
 const hasDbName = dbName && dbName !== '地球另一端';
 
-let antipodeCountry = '';
-let antipodeProvince = '';
-let antipodeProvinceEn = '';
-let antipodeCountryEn = '';
+let topDisplay;   // 顶部标题（国家+城市名）
+let bottomDisplay; // 底部地标名（城市名 + 英文）
 
 if (hasDbName) {
-    // 数据库城市：拆分国家、地名、英文
-    const dbNameFull = city.antipode_name;
-    const dbNameEnFull = city.antipode_name_en || '';
-    // 常见国家前缀
-    const prefixes = ['阿根廷', '智利', '秘鲁', '巴西', '玻利维亚', '乌拉圭', '巴拉圭', 
-                      '西班牙', '新西兰', '澳大利亚', '美国', '加拿大', '墨西哥', 
-                      '法国', '德国', '意大利', '英国', '日本', '韩国', '中国'];
-    let matchedPrefix = '';
-    let placeName = dbNameFull;
-    for (let p of prefixes) {
-        if (dbNameFull.startsWith(p)) {
-            matchedPrefix = p;
-            placeName = dbNameFull.slice(p.length);
-            break;
-        }
-    }
-    if (matchedPrefix) {
-        antipodeCountry = matchedPrefix;
-        antipodeProvince = placeName;
-        antipodeProvinceEn = dbNameEnFull;
-        antipodeCountryEn = matchedPrefix;
-    } else {
-        // 未匹配到国家前缀，尝试通过经纬度补国家（以防数据库只存了地名）
-        if (typeof getAntipodeProvince === 'function') {
-            try {
-                const result = getAntipodeProvince(antiLat, antiLng);
-                if (result && result.country) {
-                    antipodeCountry = result.country;
-                    antipodeProvince = dbNameFull;
-                    antipodeProvinceEn = dbNameEnFull;
-                    antipodeCountryEn = result.country;
-                } else {
-                    // 兜底
-                    antipodeCountry = dbNameFull;
-                    antipodeProvince = '';
-                    antipodeProvinceEn = dbNameEnFull;
-                    antipodeCountryEn = dbNameEnFull;
-                }
-            } catch(e) {
-                antipodeCountry = dbNameFull;
-                antipodeProvince = '';
-                antipodeProvinceEn = dbNameEnFull;
-                antipodeCountryEn = dbNameEnFull;
-            }
-        } else {
-            antipodeCountry = dbNameFull;
-            antipodeProvince = '';
-            antipodeProvinceEn = dbNameEnFull;
-            antipodeCountryEn = dbNameEnFull;
-        }
-    }
-    console.log(`✅ 使用数据库对跖点名称: ${dbName}`);
-} else if (typeof getAntipodeProvince === 'function') {
-    // 数据库无名称 → 走匹配逻辑
-    try {
-        const antiLat = city.antipode_lat;
-        const antiLng = city.antipode_lng;
-        if (antiLat && antiLng) {
-            const result = getAntipodeProvince(antiLat, antiLng);
-            if (result) {
-                if (result.level === 'province') {
-                    antipodeCountry = result.country || '';
-                    antipodeProvince = result.name || '';
-                    antipodeProvinceEn = result.nameEn || '';
-                    antipodeCountryEn = result.countryEn || '';
-                    console.log(`✅ 匹配到省: ${result.displayName}`);
-                } else if (result.level === 'country') {
-                    antipodeCountry = result.displayName || '';
-                    antipodeProvince = '';
-                    antipodeProvinceEn = '';
-                    antipodeCountryEn = result.displayNameEn || '';
-                } else if (result.level === 'ocean') {
-                    antipodeCountry = result.displayName || '';
-                    antipodeProvince = '';
-                    antipodeProvinceEn = '';
-                    antipodeCountryEn = result.displayNameEn || '';
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('对跖点匹配失败，使用降级值:', e);
-        antipodeCountry = '地球另一端';
-    }
+    // ===== 数据库城市：直接用数据库值，不调用任何匹配逻辑 =====
+    topDisplay = dbName;
+    bottomDisplay = dbNameEn ? `${dbName} (${dbNameEn})` : dbName;
+    console.log(`✅ 数据库城市对跖点: ${dbName}`);
 } else {
+    // ===== 非数据库城市：必须通过匹配生成 =====
+    let country = '';
+    let province = '';
+    let provinceEn = '';
+    let countryEn = '';
+    if (typeof getAntipodeProvince === 'function') {
+        try {
+            const antiLat = city.antipode_lat;
+            const antiLng = city.antipode_lng;
+            if (antiLat && antiLng) {
+                const result = getAntipodeProvince(antiLat, antiLng);
+                if (result) {
+                    if (result.level === 'province') {
+                        country = result.country || '';
+                        province = result.name || '';
+                        provinceEn = result.nameEn || '';
+                        countryEn = result.countryEn || '';
+                    } else if (result.level === 'country' || result.level === 'ocean') {
+                        country = result.displayName || '';
+                        countryEn = result.displayNameEn || '';
+                        province = '';
+                        provinceEn = '';
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('对跖点匹配失败:', e);
+        }
+    }
     // 降级
-    antipodeCountry = '地球另一端';
-}
-// ===== 国家名转中文 =====
-if (antipodeCountry && COUNTRY_NAME_MAP[antipodeCountry]) {
-    antipodeCountry = COUNTRY_NAME_MAP[antipodeCountry];
+    if (!country && !province) {
+        country = '地球另一端';
+        countryEn = 'The Other Side';
+    }
+    // 组合显示
+    topDisplay = country + province;
+    bottomDisplay = provinceEn ? `${province} (${provinceEn})` : (countryEn ? `${country} (${countryEn})` : country);
 }
 
 const cityNameEn = city.name_en || city.name_cn;
@@ -3202,44 +3140,26 @@ ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
 ctx.fillText(`(${cityNameEn})`, x1 + imgWidth / 2, titleY + 26);
 ctx.globalAlpha = 1.0;
 
-// ---- 右侧（对跖点）三行排版 ----
+// ---- 右侧（对跖点）精简排版 ----
 let currentY = titleY;
 
-// 第一行：国家名（18px）
+// 第一行：顶部显示（国家+城市名）
 ctx.textAlign = 'center';
 ctx.textBaseline = 'top';
 ctx.fillStyle = textColor;
 ctx.font = '600 18px "Noto Serif SC", "Noto Sans SC", serif';
-ctx.fillText(antipodeCountry || '地球另一端', x2 + imgWidth / 2, currentY);
+ctx.fillText(topDisplay, x2 + imgWidth / 2, currentY);
 
-// 省名转中文（如果匹配到省）
-// 使用英文省名映射到纯中文（不带国家）
-if (antipodeProvinceEn && PROVINCE_NAME_MAP[antipodeProvinceEn]) {
-    antipodeProvince = PROVINCE_NAME_MAP[antipodeProvinceEn];
-}
-// 如果没有英文省名，则使用原始值（可能是中文，也可能是英文）
-// 但最好保留原值，不过此处不再处理，因为上面已经映射了
+// 第二行：底部显示（城市名+英文，统一格式）
+currentY += 26;
+ctx.fillStyle = textColor;
+ctx.globalAlpha = 0.7;
+ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
+ctx.fillText(bottomDisplay, x2 + imgWidth / 2, currentY);
+ctx.globalAlpha = 1.0;
 
-const hasProvince = antipodeProvince && antipodeProvince.trim();
-
-if (hasProvince) {
-    // 第二行：省名（16px，小两号）
-    currentY += 26;
-    ctx.fillStyle = textColor;
-    ctx.globalAlpha = 0.85;
-    ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText(antipodeProvince, x2 + imgWidth / 2, currentY);
-
-    // 第三行：英文省名（14px，括号，不带国家）
-    if (antipodeProvinceEn) {
-        currentY += 24;
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.45;
-        ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
-        ctx.fillText(`(${antipodeProvinceEn})`, x2 + imgWidth / 2, currentY);
-        ctx.globalAlpha = 1.0;
-    }
-} else {
+// 注意：不再有第三行（省/英文分行），统一在第二行显示。
+// 注意：不再有第三行（省/英文分行），统一在第二行显示。} else {
     // 没有省名 → 第二行显示英文国家名（与左侧格式一致）
     currentY += 26;
     ctx.fillStyle = textColor;
@@ -3314,198 +3234,110 @@ const hasGift = currentGift && currentGift.name;
     }
 
     // 🔧 修改：如果有物产，只取第一行中文，不显示英文
-    if (hasGift) {
-        const lines = poemCN.split('\n');
-        poemCN = lines[0] || DEFAULT_POEM_CN;
+if (hasGift) {
+    // ---------- 计算布局 ----------
+    const imgSize = 180;
+    const rightMapCenterX = x2 + imgWidth / 2;
+    const imgX = rightMapCenterX - imgSize / 2 + 16;  // 向右移动 16px
+    const imgY = currentY;
+    const textX = 24;
+    const maxTextWidth = imgX - textX - 16;
+
+    // ---------- 加载物产图片 ----------
+    let productImg = null;
+    if (currentGift && currentGift.image) {
+        productImg = await loadImageWithCache(currentGift.image);
     }
 
-    // 检查是否包含换行符（说明 poem 中嵌入了英文）
-    const hasEmbeddedEN = poemCN.includes('\n');
-    let lineY = poemY;
-// 在 poemY 之后，if (hasEmbeddedEN) 之前声明
-let hasShownEmbeddedEN = false;
-    if (hasEmbeddedEN) {
-        // ---- 有嵌入英文：拆分成中文和英文分别绘制 ----
-        const parts = poemCN.split('\n');
-        const poemCNPart = parts[0] || DEFAULT_POEM_CN;
-        const poemENPart = parts[1] || '';
-
-        // 绘制中文
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.8;
-        ctx.font = 'italic 400 18px "Noto Serif SC", "Noto Sans SC", serif';
-        const poemLines = wrapText(ctx, poemCNPart, maxWidth);
-        poemLines.forEach(line => {
-            ctx.fillText(line, W / 2, lineY);
-            lineY += 30;
-        });
-
-        // 绘制英文（如果有）
-        if (poemENPart && poemENPart.trim()) {
-            ctx.fillStyle = textColor;
-            ctx.globalAlpha = 0.5;
-            ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-            const poemEnLines = wrapText(ctx, poemENPart, maxWidth);
-            poemEnLines.forEach(line => {
-                ctx.fillText(line, W / 2, lineY);
-                lineY += 24;
-            });
-        }
-        // 已显示嵌入的英文，标记不再单独显示英文
-        hasShownEmbeddedEN = true;
+    // ---------- 绘制物产图片（右侧，无图框） ----------
+    if (productImg) {
+        ctx.drawImage(productImg, imgX, imgY, imgSize, imgSize);
     } else {
-        // ---- 没有嵌入英文：正常显示中文 ----
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.8;
-        ctx.font = 'italic 400 18px "Noto Serif SC", "Noto Sans SC", serif';
-        const poemLines = wrapText(ctx, poemCN, maxWidth);
-        poemLines.forEach(line => {
-            ctx.fillText(line, W / 2, lineY);
-            lineY += 30;
-        });
-        hasShownEmbeddedEN = false;
+        ctx.save();
+        ctx.beginPath();
+        roundRect(ctx, imgX, imgY, imgSize, imgSize, 12);
+        ctx.fillStyle = 'rgba(26,42,74,0.05)';
+        ctx.fill();
+        ctx.fillStyle = 'rgba(26,42,74,0.15)';
+        ctx.font = '40px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🎁', imgX + imgSize/2, imgY + imgSize/2);
+        ctx.restore();
     }
 
-    // ---- 英文诗句（仅在无物产、且没有嵌入英文时单独显示） ----
-    if (!hasGift && !hasShownEmbeddedEN) {
-        let poemEN = city.poem_en || DEFAULT_POEM_EN;
-        if (poemEN === 'Cross the core, meet your far side.') {
-            poemEN = DEFAULT_POEM_EN;
-        }
-        if (poemEN && poemEN.trim()) {
-            ctx.fillStyle = textColor;
-            ctx.globalAlpha = 0.5;
-            ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-            const poemEnLines = wrapText(ctx, poemEN, maxWidth);
-            poemEnLines.forEach(line => {
-                ctx.fillText(line, W / 2, lineY);
-                lineY += 24;
-            });
-        }
+    // ---------- 绘制左侧文字信息 ----------
+    let textY = imgY - 5;
+    const lineHeight = 28;
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = accentColor;
+    ctx.globalAlpha = 0.8;
+    ctx.font = 'italic 400 18px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillText('✦ 来自地球另一端的风', textX, textY);
+
+    let nameLineY = textY + lineHeight * 2;
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 1.0;
+    ctx.font = '600 17px "Noto Serif SC", "Noto Sans SC", serif';
+    const nameText = currentGift.name || '一份礼物';
+    ctx.fillText(nameText, textX, nameLineY);
+
+    if (currentGift.name_en) {
+        ctx.fillStyle = textColor;
+        ctx.globalAlpha = 0.5;
+        ctx.font = '400 15px "Noto Serif SC", "Noto Sans SC", serif';
+        const nameEnX = textX + ctx.measureText(nameText).width + 16;
+        ctx.fillText(`(${currentGift.name_en})`, nameEnX, nameLineY + 1);
     }
     ctx.globalAlpha = 1.0;
 
-        // ===== 6. 物产区域 或 底部标语 =====
-currentY = lineY + 12;
-    const bottomBrandY = H - 44;
-    // gift 和 hasGift 已在第 5 部分声明，直接使用
-
-    if (hasGift) {
-                // ---------- 计算布局 ----------
-        const imgSize = 180;
-        // 右图中心 X 坐标（对跖点地图中心）
-        const rightMapCenterX = x2 + imgWidth / 2;
-        const imgX = rightMapCenterX - imgSize / 2 + 16;  // 向右移动 16px
-const imgY = currentY;  // 整体下移 15px（原 -15 → 0）
-const textX = 24;
-        // 文字区域最大宽度（图片左侧 - 文字左侧 - 间距）
-        const maxTextWidth = imgX - textX - 16;
-
-        // ---------- 加载物产图片 ----------
-let productImg = null;
-if (currentGift && currentGift.image) {
-    productImg = await loadImageWithCache(currentGift.image);
-}
-
-        // ---------- 绘制物产图片（右侧，无图框） ----------
-if (productImg) {
-    // 直接绘制图片，不带圆角裁剪和边框
-    ctx.drawImage(productImg, imgX, imgY, imgSize, imgSize);
-} else {
-    ctx.save();
-    ctx.beginPath();
-    roundRect(ctx, imgX, imgY, imgSize, imgSize, 12);
-    ctx.fillStyle = 'rgba(26,42,74,0.05)';
-    ctx.fill();
-    ctx.fillStyle = 'rgba(26,42,74,0.15)';
-    ctx.font = '40px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🎁', imgX + imgSize/2, imgY + imgSize/2);
-    ctx.restore();
-}
-
-        // ---------- 绘制左侧文字信息 ----------
-      let textY = imgY - 5;  // 标题相对图片再上移 5px（原10px，向下移动5px）
-        const lineHeight = 28;
-
-        // 第一行：礼物标语（18px，斜体）
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = accentColor;
-        ctx.globalAlpha = 0.8;
-        ctx.font = 'italic 400 18px "Noto Serif SC", "Noto Sans SC", serif';
-        const slogan = '✦ 来自地球另一端的风';
-        ctx.fillText(slogan, textX, textY);
-
-        // 第一行和第二行之间空一行
-        let nameLineY = textY + lineHeight * 2;
-
-        // 第二行：物产中文名（16px，斜体） + 英文名（14px，括号内）
-ctx.fillStyle = textColor;
-ctx.globalAlpha = 1.0;
-ctx.font = '600 17px "Noto Serif SC", "Noto Sans SC", serif';
-const nameText = currentGift.name || '一份礼物';
-ctx.fillText(nameText, textX, nameLineY);
-
-if (currentGift.name_en) {
+    let descLineY = nameLineY + lineHeight;
     ctx.fillStyle = textColor;
-    ctx.globalAlpha = 0.5;
-    ctx.font = '400 15px "Noto Serif SC", "Noto Sans SC", serif';
-    const nameEnX = textX + ctx.measureText(nameText).width + 16;
-    ctx.fillText(`(${currentGift.name_en})`, nameEnX, nameLineY + 1);
-}
-        ctx.globalAlpha = 1.0;
-
-        // 第三行：物产文案中文（14px，斜体）
-let descLineY = nameLineY + lineHeight;
-ctx.fillStyle = textColor;
-ctx.globalAlpha = 0.7;
-ctx.font = 'italic 400 15px "Noto Serif SC", "Noto Sans SC", serif';
-const descCN = currentGift.poemRipe || currentGift.description || '来自地球另一端的风物';
-const descLines = wrapText(ctx, descCN, maxTextWidth);
-descLines.forEach((line, i) => {
-    ctx.fillText(line, textX, descLineY + i * 22);
-});
-const descLinesCount = descLines.length;
-
-      // 第四行：物产文案英文（13px，斜体，半透明）
-let enLineY = descLineY + descLinesCount * 22 + 4;
-const descEN = currentGift.poemRipe_en || currentGift.description_en || '';
-if (descEN && descEN.trim()) {
-    ctx.fillStyle = textColor;
-    ctx.globalAlpha = 0.4;
-    ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-    const enLines = wrapText(ctx, descEN, maxTextWidth);
-    enLines.forEach((line, i) => {
-        ctx.fillText(line, textX, enLineY + i * 20);
+    ctx.globalAlpha = 0.7;
+    ctx.font = 'italic 400 15px "Noto Serif SC", "Noto Sans SC", serif';
+    const descCN = currentGift.poemRipe || currentGift.description || '来自地球另一端的风物';
+    const descLines = wrapText(ctx, descCN, maxTextWidth);
+    descLines.forEach((line, i) => {
+        ctx.fillText(line, textX, descLineY + i * 22);
     });
-    currentY = enLineY + enLines.length * 20 + 20;
-} else {
-    currentY = enLineY + 20;
-}
+    const descLinesCount = descLines.length;
 
-        // 如果文字总高度小于图片高度，以图片高度为准
-        const totalTextHeight = currentY - imgY;
-        if (totalTextHeight < imgSize) {
-            currentY = imgY + imgSize + 16;
-        }
-
-    } else {
-        // ---------- 无物产：显示底部标语 ----------
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
+    let enLineY = descLineY + descLinesCount * 22 + 4;
+    const descEN = currentGift.poemRipe_en || currentGift.description_en || '';
+    if (descEN && descEN.trim()) {
         ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.7;
-        ctx.font = 'italic 600 18px "Noto Serif SC", "Noto Sans SC", serif';
-        ctx.fillText(DEFAULT_BOTTOM_CN, W / 2, currentY);
         ctx.globalAlpha = 0.4;
         ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-        ctx.fillText(DEFAULT_BOTTOM_EN, W / 2, currentY + 28);
-        ctx.globalAlpha = 1.0;
-        currentY += 58;
+        const enLines = wrapText(ctx, descEN, maxTextWidth);
+        enLines.forEach((line, i) => {
+            ctx.fillText(line, textX, enLineY + i * 20);
+        });
+        currentY = enLineY + enLines.length * 20 + 20;
+    } else {
+        currentY = enLineY + 20;
     }
 
+    const totalTextHeight = currentY - imgY;
+    if (totalTextHeight < imgSize) {
+        currentY = imgY + imgSize + 16;
+    }
+
+} else {
+    // ---------- 无物产：显示底部标语 ----------
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = textColor;
+    ctx.globalAlpha = 0.7;
+    ctx.font = 'italic 600 18px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillText(DEFAULT_BOTTOM_CN, W / 2, currentY);
+    ctx.globalAlpha = 0.4;
+    ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.fillText(DEFAULT_BOTTOM_EN, W / 2, currentY + 28);
+    ctx.globalAlpha = 1.0;
+    currentY += 58;
+}
                // ===== 7. 底部账号 =====
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -4223,11 +4055,9 @@ function initApp() {
     loadPoemData();
     
     // ===== 搜索防抖（避免快速连续搜索） =====
+let searchDebounceTimer = null;
 
-// 搜索按钮点击事件
-const searchBtn = document.getElementById('searchBtn');
-searchBtn.onclick = null; // 清除旧的内联绑定（如果有）
-searchBtn.addEventListener('click', function() {
+document.getElementById('searchBtn').onclick = function() {
     const keyword = document.getElementById('searchInput').value.trim();
     if (!keyword) return;
     
@@ -4235,7 +4065,8 @@ searchBtn.addEventListener('click', function() {
     searchDebounceTimer = setTimeout(function() {
         searchLocation(keyword);
     }, 300);
-});
+};
+
 document.getElementById('searchInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
