@@ -332,6 +332,24 @@ const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4YmU1NTk4Z
 app.get('/api/cesium-token', (req, res) => {
     res.json({ token: CESIUM_TOKEN });
 });
+
+// ===== 导出数据库（仅管理员可访问，用于本地同步） =====
+app.get('/api/export-db', (req, res) => {
+    const auth = req.headers.authorization;
+    if (!auth) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).send('需要登录');
+    }
+    const base64 = auth.split(' ')[1];
+    const [username, password] = Buffer.from(base64, 'base64').toString().split(':');
+    if (password !== ADMIN_PASSWORD) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).send('密码错误');
+    }
+
+    const dbPath = path.join(__dirname, 'data', 'antipode.db');
+    res.sendFile(dbPath);
+});
 // ===== 搜索日志（不依赖数据库，所有搜索都记录） =====
 app.post('/api/search-log', (req, res) => {
     const { city_name } = req.body;
