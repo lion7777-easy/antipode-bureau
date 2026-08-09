@@ -1648,7 +1648,7 @@ if (searchCache.has(cacheKey)) {
 
    isSearching = true;
     document.getElementById('searchBtn').disabled = true;
-document.getElementById('searchBtn').textContent = '⏳ 搜索中...';
+document.getElementById('searchBtn').textContent = ' 搜索...';
 // ✅ 在这里定义 isQuark
     const isQuark = navigator.userAgent.toLowerCase().includes('quark');
 
