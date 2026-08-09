@@ -3516,10 +3516,10 @@ if (descEN && descEN.trim()) {
     ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
     ctx.fillText('@对跖点漫游局，一起分享这次相遇。', W / 2, bottomBrandY + 8);
 
-    // 第二行：域名（比第一行小 2px，即 14px，颜色稍淡）
-    ctx.globalAlpha = 0.4;
-    ctx.font = '400 14px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText('duizhidian.com', W / 2, bottomBrandY + 30);
+    // 第二行：域名（与第一行字体大小一致，颜色稍淡）
+ctx.globalAlpha = 0.4;
+ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
+ctx.fillText('duizhidian.com', W / 2, bottomBrandY + 30);
 
     ctx.globalAlpha = 1.0;
 
