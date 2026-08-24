@@ -3506,22 +3506,18 @@ if (descEN && descEN.trim()) {
         currentY += 58;
     }
 
-               // ===== 7. 底部账号 =====
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillStyle = textColor;
-    ctx.globalAlpha = 0.6;
+// ===== 7. 底部账号 =====
+ctx.textAlign = 'center';
+ctx.textBaseline = 'bottom';
+ctx.fillStyle = textColor;
+ctx.globalAlpha = 0.6;
 
-    // 第一行：小红书账号（保持原字体大小 16px）
-    ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
-    ctx.fillText('@对跖点漫游局，一起分享这次相遇。', W / 2, bottomBrandY + 8);
-
-    // 第二行：域名（与第一行字体大小一致，颜色稍淡）
-ctx.globalAlpha = 0.4;
+// 第一行：小红书账号（保留）
 ctx.font = '400 16px "Noto Serif SC", "Noto Sans SC", serif';
-ctx.fillText('duizhidian.com', W / 2, bottomBrandY + 30);
+ctx.fillText('@对跖点漫游局，一起分享这次相遇。', W / 2, bottomBrandY + 16);
 
-    ctx.globalAlpha = 1.0;
+
+ctx.globalAlpha = 1.0;
 
     document.getElementById('shareOverlay').classList.add('active');
 }
