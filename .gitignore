@@ -4,3 +4,5 @@ node_modules/
 .envd
 *.py
 *.zip
+.DS_Store
+data/antipode.db.backup.*
