@@ -2687,6 +2687,18 @@ ctx.fill();
         drawTeardropOnCanvas(ctx, dotX, dotY, color, size);
     });
 }
+// ===== 中秋专享时段判断（2026年9月24日18:00 至 9月27日24:00，北京时间） =====
+function isMidAutumnPeriod() {
+    const now = new Date();
+    // 转换为北京时间
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const beijing = new Date(utc + 3600000 * 8);
+    const year = beijing.getFullYear();
+    if (year !== 2026) return false;
+    const start = new Date('2026-09-24T18:00:00+08:00');
+    const end = new Date('2026-09-28T00:00:00+08:00'); // 9月27日24:00
+    return beijing >= start && beijing < end;
+}
 
 async function generateShareCard(city) {
 // ===== 硬编码省名中文翻译（确保分享卡显示中文） =====
@@ -2809,7 +2821,15 @@ const region = window.getRegion(anti.lat, anti.lng);
 const visualThemeId = getVisualTheme(region?.id || '');
 const themeColors = getThemeColors(visualThemeId);
 
-const bgPath = getThemeBg(city);
+// ===== 中秋专享判断 =====
+const isMidAutumn = isMidAutumnPeriod();
+let bgPath;
+if (isMidAutumn) {
+    bgPath = '/images/share-bg/mid-autumn.png';
+    console.log('🌕 中秋专享模式已启用');
+} else {
+    bgPath = getThemeBg(city);
+}
 let bgImage = bgImageCache[bgPath];
 if (!bgImage || !bgImage.complete) {
     bgImage = await loadImage(bgPath);
@@ -3493,19 +3513,22 @@ if (descEN && descEN.trim()) {
 
     } else {
         // ---------- 无物产：显示底部标语 ----------
+        // 中秋专享标语
+        const bottomCN = isMidAutumn ? '中秋快乐，无论你在哪里。' : DEFAULT_BOTTOM_CN;
+        const bottomEN = isMidAutumn ? 'Happy Mid-Autumn Festival, wherever you may be.' : DEFAULT_BOTTOM_EN;
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillStyle = textColor;
         ctx.globalAlpha = 0.7;
         ctx.font = 'italic 600 18px "Noto Serif SC", "Noto Sans SC", serif';
-        ctx.fillText(DEFAULT_BOTTOM_CN, W / 2, currentY);
+        ctx.fillText(bottomCN, W / 2, currentY);
         ctx.globalAlpha = 0.4;
         ctx.font = 'italic 400 14px "Noto Serif SC", "Noto Sans SC", serif';
-        ctx.fillText(DEFAULT_BOTTOM_EN, W / 2, currentY + 28);
+        ctx.fillText(bottomEN, W / 2, currentY + 28);
         ctx.globalAlpha = 1.0;
         currentY += 58;
     }
-
 // ===== 7. 底部账号 =====
 ctx.textAlign = 'center';
 ctx.textBaseline = 'bottom';
